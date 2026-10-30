@@ -1,0 +1,34 @@
+package framework
+
+import (
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+)
+
+// Legend liste les contrôles en bas de l'interface.
+type Legend struct{ gate }
+
+func NewLegend() *Legend { return &Legend{} }
+
+func (l *Legend) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+
+func (l *Legend) View(s Style, _ Widget, _ bool) string {
+	return strings.Join(legendLines(s), "\n")
+}
+
+func legendLines(s Style) []string {
+	rows := [][]struct{ key, text string }{
+		{{"↑↓←→", "focus"}, {"entrée", "ouvre ou choisit"}, {"ctrl+←→", "onglet"}},
+		{{"échap", "sort"}, {"q", "quitte"}},
+	}
+	out := make([]string, len(rows))
+	for i, row := range rows {
+		parts := make([]string, len(row))
+		for j, item := range row {
+			parts[j] = s.paint(s.Accent, true, item.key) + s.paint(s.Text, false, " "+item.text)
+		}
+		out[i] = strings.Join(parts, s.paint(s.Text, false, "   "))
+	}
+	return out
+}

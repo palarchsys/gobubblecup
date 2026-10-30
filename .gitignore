@@ -1,0 +1,27 @@
+# Binaires
+/GOBubbleCup
+*.exe
+*.test
+*.out
+/bin/
+/dist/
+
+# Go
+/vendor/
+
+# Secrets
+.env
+.env.*
+*.local
+
+# Éditeurs
+.idea/
+.vscode/
+*.swp
+
+# Outils locaux
+.grok/
+
+# Système
+.DS_Store
+Thumbs.db

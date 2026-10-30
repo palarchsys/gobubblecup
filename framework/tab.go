@@ -1,0 +1,490 @@
+package framework
+
+import (
+	"image/color"
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+)
+
+// TabItem choisit un onglet. id le relie à un Tab.
+type tabItem struct {
+	id    string
+	label string
+}
+
+func TabItem(id, label string) *tabItem { return NewTabItem(id, label) }
+
+func NewTabItem(id, label string) *tabItem {
+	if id == "" {
+		panic("framework: onglet sans id")
+	}
+	return &tabItem{id: id, label: label}
+}
+
+func (t *tabItem) ID() string { return t.id }
+
+// Tab est la grille affichée quand son item est choisi.
+type tab struct {
+	id   string
+	grid *grid
+}
+
+func Tab(id string, grid *grid) *tab { return NewTab(id, grid) }
+
+func NewTab(id string, grid *grid) *tab {
+	if id == "" {
+		panic("framework: onglet sans id")
+	}
+	if grid == nil {
+		panic("framework: grille nulle")
+	}
+	return &tab{id: id, grid: grid}
+}
+
+// tabRow est une ligne de la grille d'onglet. Elle occupe plusieurs colonnes de focus.
+type tabRow struct{ cells []Widget }
+
+func (r *tabRow) Active() bool { return true }
+
+func (r *tabRow) SetActive(bool) {}
+
+func (r *tabRow) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+
+func (r *tabRow) View(Style, Widget, bool) string { return "" }
+
+// TabList pose une rangée d'onglets collée au panneau, sans titre.
+// La barre n'est pas un arrêt de focus. Onglets et panneau restent gris.
+type tabList struct {
+	gate
+	items    []*tabItem
+	tabs     []*tab
+	cursor   int
+	selected int
+}
+
+func TabList(items ...*tabItem) *tabList { return NewTabList(items...) }
+
+func NewTabList(items ...*tabItem) *tabList {
+	for _, item := range items {
+		if item == nil {
+			panic("framework: item d'onglet nul")
+		}
+	}
+	list := &tabList{gate: gate{on: true}, items: items, selected: -1}
+	if len(items) > 0 {
+		list.selected = 0
+	}
+	return list
+}
+
+func (t *tabList) SetTabs(tabs ...*tab) {
+	for _, tab := range tabs {
+		if tab == nil {
+			panic("framework: onglet nul")
+		}
+	}
+	t.tabs = tabs
+}
+
+func (t *tabList) Cursor() int { return t.cursor }
+
+func (t *tabList) SelectedID() string {
+	if t.selected < 0 || t.selected >= len(t.items) {
+		return ""
+	}
+	return t.items[t.selected].id
+}
+
+func (t *tabList) Kids() []Widget {
+	rows := t.activeRows()
+	out := make([]Widget, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &tabRow{cells: row})
+	}
+	return out
+}
+
+func (t *tabList) SetActive(on bool) {
+	t.gate.SetActive(on)
+	for _, tab := range t.tabs {
+		for _, row := range tab.grid.rows {
+			for _, w := range row {
+				if w != nil {
+					w.SetActive(on)
+				}
+			}
+		}
+	}
+}
+
+func (t *tabList) Reload() {
+	for _, tab := range t.tabs {
+		for _, row := range tab.grid.rows {
+			for _, w := range row {
+				if zone, ok := w.(Reloader); ok {
+					zone.Reload()
+				}
+			}
+		}
+	}
+}
+
+func (t *tabList) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+
+// move change d'onglet. Faux si la direction ne mène à aucun autre onglet.
+func (t *tabList) move(delta int) bool {
+	next := t.cursor + delta
+	if next < 0 || next >= len(t.items) || next == t.cursor {
+		return false
+	}
+	t.cursor = next
+	t.selected = next
+	return true
+}
+
+// firstFocus est le premier item ou la première zone de l'onglet affiché.
+func (t *tabList) firstFocus() Widget {
+	rows := t.activeRows()
+	if len(rows) == 0 {
+		return nil
+	}
+	if spots := (&grid{rows: rows}).spots(); len(spots) > 0 {
+		return spots[0].widget
+	}
+	return nil
+}
+
+func (t *tabList) activeRows() [][]Widget {
+	id := t.SelectedID()
+	if id == "" {
+		return nil
+	}
+	for _, tab := range t.tabs {
+		if tab.id == id {
+			return tab.grid.rows
+		}
+	}
+	return nil
+}
+
+func (t *tabList) View(s Style, focused Widget, inside bool) string {
+	padX := s.padX()
+	rows := t.activeRows()
+	// Mesure à la largeur d'origine. La largeur imposée par l'interface
+	// ne doit pas redevenir la taille des enfants : le cadre serait compté deux fois.
+	measured := measureRows(rows, s.preferred(), focused, inside)
+	contentW := 0
+	rowH := make([]int, len(measured))
+	for i, row := range measured {
+		span := 0
+		for j, sz := range row {
+			span += sz.w
+			if j > 0 {
+				span += s.margin()
+			}
+			if sz.h > rowH[i] {
+				rowH[i] = sz.h
+			}
+		}
+		if span > contentW {
+			contentW = span
+		}
+	}
+	head := tabStripWidth(t.tabBoxes())
+	panelW := contentW + 2 + 2*padX
+	if head > panelW {
+		panelW = head
+	}
+	width := panelW
+	if s.fit {
+		width = s.Width
+	}
+	if width < 1 {
+		width = panelW
+	}
+	inner := width - 2 - 2*padX
+	if inner < 1 {
+		inner = 1
+	}
+	bodyLines := 1
+	if len(rows) > 0 {
+		bodyLines = 0
+		for _, h := range rowH {
+			bodyLines += h
+		}
+	}
+	// Deux lignes d'onglets, le trait du panneau, le corps, le trait bas.
+	chrome := 4
+	extra := 0
+	if s.fit && s.Height > chrome+bodyLines {
+		extra = s.Height - chrome - bodyLines
+	}
+	var parts []string
+	for i, row := range rows {
+		h := rowH[i]
+		if i == len(rows)-1 {
+			h += extra
+		}
+		parts = append(parts, placeRow(row, s, focused, inside, inner, h))
+	}
+	body := ""
+	if len(parts) > 0 {
+		body = strings.Join(parts, "\n")
+	}
+	return t.draw(s, width, body)
+}
+
+type tabBox struct {
+	label  string
+	inner  int
+	L, R   int
+	active bool
+}
+
+func (t *tabList) tabBoxes() []tabBox {
+	boxes := make([]tabBox, len(t.items))
+	x := 0
+	for i, item := range t.items {
+		inner := lipgloss.Width(item.label) + 2
+		if inner < 2 {
+			inner = 2
+		}
+		boxes[i] = tabBox{label: item.label, inner: inner, L: x, R: x + inner + 1, active: i == t.selected}
+		x = boxes[i].R
+	}
+	return boxes
+}
+
+func tabStripWidth(boxes []tabBox) int {
+	if len(boxes) == 0 {
+		return 0
+	}
+	return boxes[len(boxes)-1].R + 1
+}
+
+func (t *tabList) draw(s Style, width int, body string) string {
+	tl, tr, bl, br, dash, bar := s.corners()
+	h := []rune(dash)[0]
+	v := []rune(bar)[0]
+	tlR, trR := []rune(tl)[0], []rune(tr)[0]
+	panel, panelBold := s.ink(frameIdle)
+	boxes := t.tabBoxes()
+	blank := inkCell{r: ' ', c: s.Text, bold: false}
+	idle := inkCell{r: h, c: s.Idle, bold: false}
+	tops := make([]inkCell, width)
+	mids := make([]inkCell, width)
+	for i := range tops {
+		tops[i] = blank
+		mids[i] = blank
+	}
+	for i, b := range boxes {
+		if b.R >= width {
+			break
+		}
+		left := tlR
+		if i > 0 {
+			left = '┬'
+		}
+		tops[b.L] = inkCell{r: left, c: s.Idle, bold: false}
+		for c := b.L + 1; c < b.R; c++ {
+			tops[c] = idle
+		}
+		right := rune('┬')
+		if i == len(boxes)-1 {
+			right = trR
+		}
+		tops[b.R] = inkCell{r: right, c: s.Idle, bold: false}
+		mids[b.L] = inkCell{r: v, c: s.Idle, bold: false}
+		mids[b.R] = inkCell{r: v, c: s.Idle, bold: false}
+		ink, bold := s.Text, false
+		if b.active {
+			ink, bold = s.Accent, true
+		}
+		col := b.L + 1
+		if col < b.R {
+			mids[col] = inkCell{r: ' ', c: s.Text, bold: false}
+			col++
+		}
+		for _, r := range b.label {
+			if col >= b.R {
+				break
+			}
+			mids[col] = inkCell{r: r, c: ink, bold: bold}
+			col++
+		}
+		for col < b.R {
+			mids[col] = inkCell{r: ' ', c: s.Text, bold: false}
+			col++
+		}
+	}
+	join := make([]inkCell, width)
+	for i := range join {
+		join[i] = inkCell{r: h, c: panel, bold: panelBold}
+	}
+	if width > 0 {
+		join[0] = inkCell{r: tlR, c: panel, bold: panelBold}
+		join[width-1] = inkCell{r: trR, c: panel, bold: panelBold}
+	}
+	for _, b := range boxes {
+		if b.active || b.L >= width {
+			continue
+		}
+		if b.L == 0 {
+			join[b.L] = inkCell{r: '├', c: s.Idle, bold: false}
+		} else {
+			join[b.L] = inkCell{r: '┴', c: s.Idle, bold: false}
+		}
+		for c := b.L + 1; c < b.R && c < width; c++ {
+			join[c] = inkCell{r: h, c: s.Idle, bold: false}
+		}
+		if b.R >= width {
+			continue
+		}
+		if b.R == width-1 {
+			join[b.R] = inkCell{r: '┤', c: s.Idle, bold: false}
+		} else {
+			join[b.R] = inkCell{r: '┴', c: s.Idle, bold: false}
+		}
+	}
+	for _, b := range boxes {
+		if !b.active || b.L >= width {
+			continue
+		}
+		if b.L == 0 {
+			join[b.L] = inkCell{r: v, c: panel, bold: panelBold}
+		} else {
+			join[b.L] = inkCell{r: '┘', c: s.Idle, bold: false}
+		}
+		for c := b.L + 1; c < b.R && c < width; c++ {
+			join[c] = inkCell{r: ' ', c: s.Text, bold: false}
+		}
+		if b.R >= width {
+			continue
+		}
+		if b.R == width-1 {
+			join[b.R] = inkCell{r: v, c: panel, bold: panelBold}
+		} else {
+			join[b.R] = inkCell{r: '└', c: s.Idle, bold: false}
+		}
+	}
+	lines := []string{paintCells(s, tops), paintCells(s, mids), paintCells(s, join)}
+	inner := width - 2 - 2*s.padX()
+	if inner < 1 {
+		inner = 1
+	}
+	rows := strings.Split(body, "\n")
+	if body == "" {
+		rows = []string{""}
+	}
+	side := s.shade(s.padX())
+	wall := s.paint(panel, panelBold, bar)
+	for _, row := range rows {
+		lines = append(lines, wall+side+fit(row, inner, s)+side+wall)
+	}
+	dashes := width - 2
+	if dashes < 0 {
+		dashes = 0
+	}
+	bot := s.paint(panel, panelBold, bl+strings.Repeat(dash, dashes)+br)
+	lines = append(lines, bot)
+	return strings.Join(lines, "\n")
+}
+
+type inkCell struct {
+	r    rune
+	c    color.Color
+	bold bool
+}
+
+func paintCells(s Style, cells []inkCell) string {
+	var b strings.Builder
+	for i := 0; i < len(cells); {
+		j := i + 1
+		for j < len(cells) && cells[j].bold == cells[i].bold && cells[j].c == cells[i].c {
+			j++
+		}
+		var text strings.Builder
+		for _, cell := range cells[i:j] {
+			text.WriteRune(cell.r)
+		}
+		b.WriteString(s.paint(cells[i].c, cells[i].bold, text.String()))
+		i = j
+	}
+	return b.String()
+}
+
+type pair struct{ w, h int }
+
+func measureRows(rows [][]Widget, s Style, focused Widget, inside bool) [][]pair {
+	out := make([][]pair, len(rows))
+	for i, row := range rows {
+		out[i] = make([]pair, len(row))
+		for j, w := range row {
+			if w == nil {
+				continue
+			}
+			view := w.View(s, focused, inside)
+			out[i][j] = pair{w: lineWidth(view), h: lineCount(view)}
+		}
+	}
+	return out
+}
+
+func placeRow(row []Widget, s Style, focused Widget, inside bool, width, height int) string {
+	if len(row) == 0 {
+		return fit("", width, s)
+	}
+	gap := s.margin()
+	base := s.preferred()
+	sizes := make([]int, len(row))
+	sum := 0
+	for i, w := range row {
+		if w == nil {
+			continue
+		}
+		sizes[i] = lineWidth(w.View(base, focused, inside))
+		sum += sizes[i]
+	}
+	if len(row) > 1 && gap > 0 {
+		sum += (len(row) - 1) * gap
+	}
+	slack := width - sum
+	if slack > 0 && len(sizes) > 0 {
+		sizes[len(sizes)-1] += slack
+	}
+	if slack < 0 {
+		over := -slack
+		for i := len(sizes) - 1; i >= 0 && over > 0; i-- {
+			room := sizes[i] - 1
+			if room < 1 {
+				continue
+			}
+			if room > over {
+				room = over
+			}
+			sizes[i] -= room
+			over -= room
+		}
+	}
+	if height < 1 {
+		height = 1
+	}
+	pieces := make([]string, 0, len(row)*2)
+	for i, w := range row {
+		if i > 0 && gap > 0 {
+			pieces = append(pieces, s.veil(gap, height))
+		}
+		cellW := sizes[i]
+		if cellW < 1 {
+			cellW = 1
+		}
+		if w == nil {
+			pieces = append(pieces, s.veil(cellW, height))
+			continue
+		}
+		pieces = append(pieces, w.View(s.placed(cellW, height), focused, inside))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, pieces...)
+}
