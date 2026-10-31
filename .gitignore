@@ -1,12 +1,17 @@
-# Binaires
-/GOBubbleCup
+# Binaires produits par go build, go test et go run
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 *.test
 *.out
 /bin/
 /dist/
+/gobubblecup
+/GOBubbleCup
 
-# Go
+# Dépendances vendues
 /vendor/
 
 # Secrets
@@ -14,13 +19,23 @@
 .env.*
 *.local
 
+# Fichier d'exemple écrit par ReadFile / WriteFile
+/notes.txt
+
 # Éditeurs
 .idea/
 .vscode/
+.junie/
 *.swp
+*~
 
 # Outils locaux
 .grok/
+
+# Couverture
+*.coverprofile
+coverage.out
+coverage.html
 
 # Système
 .DS_Store

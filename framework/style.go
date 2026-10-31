@@ -25,7 +25,6 @@ type Style struct {
 	Margin     int
 	Radius     int
 	Thickness  int
-	Cursor     string
 	Mark       string
 	Track      string
 	Thumb      string
@@ -52,10 +51,19 @@ func edgeOf(focused, inside bool) frame {
 }
 
 func focusedEdge(self, focused Widget, inside bool) frame {
-	if self == nil || self != focused {
+	if self == nil || self.Disabled() || self != focused {
 		return frameIdle
 	}
 	return edgeOf(true, inside)
+}
+
+// dimmed peint textes et titres avec le gris de repos.
+func (s Style) dimmed() Style {
+	s.Text = s.Idle
+	s.Accent = s.Idle
+	s.Focus = s.Idle
+	s.Inside = s.Idle
+	return s
 }
 
 // DefaultStyle reprend Dark (Visual Studio), le thème de base de VS Code.
@@ -81,7 +89,6 @@ func DefaultStyle() Style {
 		Margin:     1,
 		Radius:     1,
 		Thickness:  1,
-		Cursor:     "›",
 		Mark:       "✓",
 		Track:      "│",
 		Thumb:      "█",
@@ -195,7 +202,11 @@ func (s Style) veil(width, height int) string {
 }
 
 func (s Style) paint(c color.Color, bold bool, text string) string {
-	st := lipgloss.NewStyle().Foreground(c).Background(s.paper())
+	return s.paintOn(c, s.paper(), bold, text)
+}
+
+func (s Style) paintOn(fg, bg color.Color, bold bool, text string) string {
+	st := lipgloss.NewStyle().Foreground(fg).Background(bg)
 	if bold {
 		st = st.Bold(true)
 	}
@@ -209,35 +220,49 @@ func (s Style) corners() (tl, tr, bl, br, h, v string) {
 	return "┌", "┐", "└", "┘", "─", "│"
 }
 
-func (s Style) itemLine(label string, cursor, picked bool, width int) string {
-	// Deux colonnes : le symbole sous le premier caractère du titre, puis un espace.
+// itemLine dessine une ligne de liste.
+// remembered pose le fond #37373d, que la liste ait le focus ou non.
+// armed met le texte en gras : la liste a le focus de grille.
+// picked pose ✓ dans la première colonne.
+// dot est une couleur #rrggbb. Vide : pas de pastille. Sinon ● en dernière colonne.
+func (s Style) itemLine(label string, remembered, armed, picked bool, dot string, width int) string {
 	symbol := " "
-	if cursor {
-		symbol = s.Cursor
-	} else if picked {
+	if picked {
 		symbol = s.Mark
 	}
 	prefix := symbol + " "
-	room := width - lipgloss.Width(prefix)
+	reserve := 0
+	if dot != "" {
+		reserve = 1
+	}
+	room := width - lipgloss.Width(prefix) - reserve
 	if room < 0 {
 		room = 0
 	}
 	text := prefix + clipWidth(label, room)
+	bg := s.paper()
+	if remembered {
+		bg = Color("#37373d")
+	}
 	col := s.Text
 	bold := false
 	switch {
-	case cursor && picked:
+	case armed && picked:
 		col = s.Accent
 		bold = true
-	case cursor:
+	case armed:
 		col = s.Focus
 		bold = true
 	case picked:
 		col = s.Inside
 	}
-	line := s.paint(col, bold, text)
-	if pad := width - lipgloss.Width(text); pad > 0 {
-		line += s.paint(s.Text, false, strings.Repeat(" ", pad))
+	line := s.paintOn(col, bg, bold, text)
+	pad := width - lipgloss.Width(text) - reserve
+	if pad > 0 {
+		line += s.paintOn(s.Text, bg, false, strings.Repeat(" ", pad))
+	}
+	if reserve > 0 {
+		line += s.paintOn(Color(dot), bg, false, "●")
 	}
 	return line
 }

@@ -24,5 +24,8 @@ func (b *button) Handle(inside bool, key string) (bool, tea.Cmd) {
 }
 
 func (b *button) View(s Style, focused Widget, inside bool) string {
+	if b.Disabled() {
+		s = s.dimmed()
+	}
 	return s.box(s.line(b.label, s.Text, false, s.content(s.Width)), focusedEdge(b, focused, inside), s.Width, s.Height, "")
 }

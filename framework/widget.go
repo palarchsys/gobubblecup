@@ -3,12 +3,11 @@
 // Title, Category, ListUniq, ListMult, Item, Button, Action, TextArea et TextInput
 // se branchent sur le même contrat.
 //
-// Les flèches passent d'une zone active à l'autre. Le contour passe au bleu.
-// Entrée ouvre une liste ou un champ, et le contour passe au bleu clair.
-// Dans une liste unique, Entrée choisit et referme. Dans une liste multiple,
-// Entrée coche et Échap referme. Le focus reste.
-// Ctrl+gauche et Ctrl+droite changent d'onglet depuis n'importe où.
-// Sans nouvel onglet, la touche ne fait rien. La barre n'est pas un focus.
+// Gauche et droite parcourent les zones actives, de haut-gauche vers droite-bas, et bouclent.
+// Haut et bas déplacent l'item de la liste focalisée. Entrée le choisit ou le décoche.
+// Le contour au focus est bleu. Une liste ne s'ouvre pas.
+// Tab va à l'onglet de droite. Le parcours reprend au début.
+// La barre n'est pas un focus.
 // Le contour des onglets et du panneau reste gris.
 // L'objet de droite prend le vide horizontal. La hauteur rejoint l'objet d'en dessous.
 package framework
@@ -20,6 +19,9 @@ import tea "charm.land/bubbletea/v2"
 type Widget interface {
 	Active() bool
 	SetActive(bool)
+	Disable()
+	Enable()
+	Disabled() bool
 	Handle(inside bool, key string) (bool, tea.Cmd)
 	View(s Style, focused Widget, inside bool) string
 }
@@ -28,11 +30,34 @@ type Widget interface {
 type Reloader interface{ Reload() }
 
 // gate est le drapeau partagé : inactif, la case est sautée.
-type gate struct{ on bool }
+type gate struct {
+	on       bool
+	disabled bool
+}
 
-func (g *gate) Active() bool { return g.on }
+func (g *gate) Active() bool { return g != nil && g.on && !g.disabled }
 
 func (g *gate) SetActive(on bool) { g.on = on }
+
+// Disable grise l'objet et le retire du focus. Il reste visible.
+func (g *gate) Disable() {
+	if g == nil || g.disabled {
+		return
+	}
+	g.disabled = true
+	notify()
+}
+
+// Enable rend le focus et les couleurs.
+func (g *gate) Enable() {
+	if g == nil || !g.disabled {
+		return
+	}
+	g.disabled = false
+	notify()
+}
+
+func (g *gate) Disabled() bool { return g != nil && g.disabled }
 
 type kids interface{ Kids() []Widget }
 

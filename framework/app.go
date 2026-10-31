@@ -11,6 +11,7 @@ import (
 // La grille est un pointeur : les changements survivent à la copie reçue par Update.
 type App struct {
 	style         Style
+	win           *window
 	grid          *grid
 	width, height int
 }
@@ -19,35 +20,68 @@ func New(style Style, grid *grid) App {
 	if grid == nil {
 		grid = NewGrid()
 	}
-	lists := grid.tabLists()
-	if len(lists) > 1 {
-		panic("framework: une seule liste d'onglets par interface")
+	w := Window()
+	w.Use(grid)
+	return NewWindow(style, w)
+}
+
+// NewWindow affiche une fenêtre. Suivante et Précédente changent la grille.
+func NewWindow(style Style, w *window) App {
+	if w == nil || len(w.pages) == 0 {
+		panic("framework: fenêtre vide")
 	}
-	if len(lists) == 1 {
-		if w := lists[0].firstFocus(); w != nil {
-			grid.focus = w
-			grid.inside = false
+	for _, page := range w.pages {
+		lists := page.tabLists()
+		if len(lists) > 1 {
+			panic("framework: une seule liste d'onglets par interface")
 		}
+		if len(lists) == 1 {
+			if zone := lists[0].firstFocus(); zone != nil {
+				page.focus = zone
+				page.inside = false
+			}
+		}
+		page.follow()
 	}
-	return App{style: style, grid: grid}
+	return App{style: style, win: w, grid: w.current()}
+}
+
+func (a App) sync() App {
+	if a.win != nil && len(a.win.pages) > 0 {
+		a.grid = a.win.current()
+	}
+	return a
 }
 
 func (a App) Init() tea.Cmd { return tea.Batch(tea.ClearScreen, WaitRefresh()) }
 
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	a = a.sync()
 	switch msg := msg.(type) {
 	case refreshMsg:
-		return a, WaitRefresh()
+		return a.sync(), WaitRefresh()
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		return a, nil
+		return a.sync(), nil
+	case tea.PasteMsg:
+		a.grid.paste(msg.Content)
+		return a.sync(), nil
+	case tea.ClipboardMsg:
+		if msg.Clipboard() == 'c' || msg.Clipboard() == 0 {
+			a.grid.paste(msg.String())
+		}
+		return a.sync(), nil
 	case tea.KeyPressMsg:
 		key := msg.String()
 		if key == "ctrl+c" || (key == "q" && !a.grid.Inside()) {
-			return a, tea.Quit
+			return a.sync(), tea.Quit
 		}
-		return a, a.grid.Key(key)
+		if key == "ctrl+v" && a.grid.canPaste() {
+			return a.sync(), func() tea.Msg { return tea.ReadClipboard() }
+		}
+		cmd := a.grid.Key(key)
+		return a.sync(), cmd
 	case ExecDone:
 		if msg.Into != nil {
 			text := strings.TrimRight(msg.Output, "\n")
@@ -58,14 +92,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				text += msg.Err.Error()
 			}
 			msg.Into.SetText(text)
+			if zone, ok := msg.Into.(Widget); ok && a.win != nil {
+				a.win.reveal(zone)
+			}
 		}
-		return a, nil
+		return a.sync(), nil
 	default:
-		return a, nil
+		return a.sync(), nil
 	}
 }
 
 func (a App) View() tea.View {
+	a = a.sync()
 	s := a.style
 	rows := a.grid.render(s)
 	width := 0

@@ -21,6 +21,82 @@ func press(t *testing.T, app App, msg tea.KeyPressMsg) App {
 	return next.(App)
 }
 
+func TestDemoRechargerEtEcho(t *testing.T) {
+	memo := Memory()
+	memo.Set(Data{"id": "1", "data": Data{"id": "cyan", "value": "Cyan"}})
+	memo.Set(Data{"id": "2", "data": Data{"id": "magenta", "value": "Magenta"}})
+	teintes := ListUniq("Teintes", ReactiveObject(ListItem, memo, map[string]string{"id": "id", "label": "value"}))
+	pieces := ListMult("Pièces", ListItem("casque", "Casque"), ListItem("veste", "Veste"))
+	catalogue := Category("Catalogue", teintes, pieces)
+	nom := TextInput("Nom", InputText, 24, true)
+	sortie := TextArea("Sortie", "En attente", false, 4, true)
+	saisie := Category("Saisie", nom, sortie)
+	vues := TabList(TabItem("fiches", "Fiches"), TabItem("saisie", "Saisie"))
+	vues.SetTabs(
+		Tab("fiches", Grid(Row(catalogue))),
+		Tab("saisie", Grid(Row(saisie))),
+	)
+	recharger := Button("Recharger", Reload{Target: teintes})
+	echo := Button("Echo", Exec{Script: "echo", Args: []string{"bonjour"}, Into: sortie})
+	app := New(DefaultStyle(), Grid(
+		Row(Title("high-tui")),
+		Row(vues),
+		Row(recharger, echo),
+	))
+
+	app = press(t, app, key(tea.KeyDown))
+	app = press(t, app, key(tea.KeyEnter))
+	if teintes.Value() != "magenta" {
+		t.Fatalf("choix %q", teintes.Value())
+	}
+	memo.Set("4", "Noir")
+	if !strings.Contains(plain(app.View().Content), "Noir") {
+		t.Fatal("la teinte ajoutée doit apparaître")
+	}
+
+	for i := 0; i < 6 && app.grid.Focus() != recharger; i++ {
+		app = press(t, app, key(tea.KeyRight))
+		t.Logf("droite %d focus %T", i, app.grid.Focus())
+	}
+	if app.grid.Focus() != recharger {
+		spots := app.grid.spots()
+		t.Fatalf("pas sur Recharger, %d spots, focus %T", len(spots), app.grid.Focus())
+	}
+	app = press(t, app, key(tea.KeyEnter))
+	if teintes.Value() != "" {
+		t.Fatalf("recharger laisse %q", teintes.Value())
+	}
+	view := plain(app.View().Content)
+	if strings.Contains(view, "Noir") || strings.Contains(view, "✓") || !strings.Contains(view, "Cyan") {
+		t.Fatal(view)
+	}
+
+	app = press(t, app, key(tea.KeyRight))
+	if app.grid.Focus() != echo {
+		t.Fatalf("focus %T", app.grid.Focus())
+	}
+	next, cmd := app.Update(key(tea.KeyEnter))
+	app = next.(App)
+	if cmd == nil {
+		t.Fatal("echo sans commande")
+	}
+	done, ok := cmd().(ExecDone)
+	if !ok {
+		t.Fatalf("message %T", cmd())
+	}
+	next, _ = app.Update(done)
+	app = next.(App)
+	if sortie.Text() != "bonjour" {
+		t.Fatalf("sortie %q err %v", sortie.Text(), done.Err)
+	}
+	if vues.SelectedID() != "saisie" || app.grid.Focus() != sortie {
+		t.Fatalf("onglet %s focus %T", vues.SelectedID(), app.grid.Focus())
+	}
+	if !strings.Contains(plain(app.View().Content), "bonjour") {
+		t.Fatal(plain(app.View().Content))
+	}
+}
+
 func TestFlechesEntreZonesActives(t *testing.T) {
 	uniq := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta"))
 	mute := NewListUniq("Off", NewItem("X", "X"))
@@ -43,24 +119,28 @@ func TestFlechesEntreZonesActives(t *testing.T) {
 		t.Fatal("droite sort de la catégorie")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != executer {
-		t.Fatal("la flèche droite s'arrête au bord")
-	}
-	app = press(t, app, key(tea.KeyDown))
 	if app.grid.Focus() != mult {
-		t.Fatal("la descente saute la liste inactive")
+		t.Fatal("droite suit l'ordre haut-gauche vers droite-bas")
 	}
-	app = press(t, app, key(tea.KeyDown))
+	app = press(t, app, key(tea.KeyRight))
 	if app.grid.Focus() != recharger {
-		t.Fatal("la descente quitte la catégorie")
+		t.Fatal("droite descend à la rangée suivante")
 	}
-	app = press(t, app, key(tea.KeyDown))
+	app = press(t, app, key(tea.KeyRight))
+	if app.grid.Focus() != uniq {
+		t.Fatal("droite reprend au premier élément")
+	}
+	app = press(t, app, key(tea.KeyLeft))
 	if app.grid.Focus() != recharger {
-		t.Fatal("la flèche bas s'arrête au bord")
+		t.Fatal("gauche reprend au dernier élément")
 	}
 	app = press(t, app, key(tea.KeyUp))
-	if app.grid.Focus() != mult {
-		t.Fatal("la montée revient sur la liste")
+	app = press(t, app, key(tea.KeyDown))
+	if app.grid.Focus() != recharger {
+		t.Fatal("haut et bas ne changent pas de zone")
+	}
+	if app.grid.Focus() == mute {
+		t.Fatal("la liste inactive est sautée")
 	}
 }
 
@@ -69,25 +149,27 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 	mult := NewListMult("Pièces", NewItem("Casque", "Casque"), NewItem("Veste", "Veste"))
 	app := New(DefaultStyle(), NewGrid(Row(NewCategory("Catalogue", uniq, mult))))
 
-	app = press(t, app, key(tea.KeyEnter))
-	if !app.grid.Inside() || app.grid.Focus() != uniq {
-		t.Fatal("entrée ouvre la liste")
+	if uniq.Focus() != "Cyan" {
+		t.Fatalf("focus initial %q", uniq.Focus())
 	}
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyDown))
-	app = press(t, app, key(tea.KeyLeft))
-	if uniq.Cursor() != 2 || app.grid.Focus() != uniq {
-		t.Fatalf("curseur %d", uniq.Cursor())
+	if uniq.Cursor() != 2 || uniq.Focus() != "Jaune" || app.grid.Focus() != uniq || app.grid.Inside() {
+		t.Fatalf("curseur %d focus %q", uniq.Cursor(), uniq.Focus())
 	}
 	app = press(t, app, key(tea.KeyEnter))
 	item, ok := uniq.Choice()
 	if !ok || item.Label != "Jaune" || app.grid.Inside() || app.grid.Focus() != uniq {
 		t.Fatalf("choix %#v inside %v", item, app.grid.Inside())
 	}
+	app = press(t, app, key(tea.KeyEnter))
+	if uniq.Value() != "Jaune" {
+		t.Fatal("un second entrée garde le choix")
+	}
 	view := plain(app.View().Content)
-	if !strings.Contains(view, "✓ Jaune") || strings.Contains(view, "›") {
-		t.Fatal("le ✓ reste visible hors de la liste")
+	if strings.Contains(view, "›") || !strings.Contains(view, "✓ Jaune") {
+		t.Fatal("le choix reste en ✓, sans marqueur de focus")
 	}
 	titleCol, markCol := -1, -1
 	for _, line := range strings.Split(view, "\n") {
@@ -105,46 +187,61 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 		t.Fatal("le sous-titre est sur le contour")
 	}
 
-	app = press(t, app, key(tea.KeyDown))
-	app = press(t, app, key(tea.KeyEnter))
-	app = press(t, app, key(tea.KeyEnter))
-	app = press(t, app, key(tea.KeyDown))
-	app = press(t, app, key(tea.KeyEnter))
-	if !app.grid.Inside() || app.grid.Focus() != mult {
-		t.Fatal("entrée coche et reste dans la liste")
+	held := uniq.Focus()
+	app = press(t, app, key(tea.KeyRight))
+	if app.grid.Focus() != mult || uniq.Focus() != held {
+		t.Fatal("la liste garde son item")
 	}
-	app = press(t, app, key(tea.KeyEsc))
+	left := plain(app.View().Content)
+	if !strings.Contains(left, "✓ Jaune") {
+		t.Fatal("le ✓ reste visible hors de la liste")
+	}
+	app = press(t, app, key(tea.KeyLeft))
+	if app.grid.Focus() != uniq || uniq.Focus() != "Jaune" || uniq.Cursor() != 2 {
+		t.Fatalf("retour %q", uniq.Focus())
+	}
+
+	app = press(t, app, key(tea.KeyRight))
+	app = press(t, app, key(tea.KeyDown))
+	app = press(t, app, key(tea.KeyEnter))
+	app = press(t, app, key(tea.KeyUp))
+	app = press(t, app, key(tea.KeyEnter))
+	if app.grid.Inside() || app.grid.Focus() != mult {
+		t.Fatal("entrée coche sans ouvrir la liste")
+	}
 	labels := make([]string, 0, 2)
 	for _, item := range mult.Choices() {
 		labels = append(labels, item.Label)
 	}
-	if strings.Join(labels, ",") != "Casque,Veste" || app.grid.Inside() || app.grid.Focus() != mult {
+	if strings.Join(labels, ",") != "Casque,Veste" || app.grid.Focus() != mult {
 		t.Fatalf("multiple %v", labels)
 	}
+	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyEnter))
-	app = press(t, app, key(tea.KeyEnter))
-	app = press(t, app, key(tea.KeyEsc))
 	if got := mult.Choices(); len(got) != 1 || got[0].Label != "Casque" || app.grid.Inside() {
 		t.Fatalf("retrait %#v", got)
 	}
 }
 
 func TestChampEtZoneDeTexte(t *testing.T) {
-	port := NewTextInput("Port", InputNumber, 4)
-	secret := NewTextInput("Code", InputSecret, 0)
-	zone := NewTextArea("Notes", "a\nb\nc\nd\ne", false, 2)
-	edit := NewTextArea("Brouillon", "", true, 3)
+	port := NewTextInput("Port", InputNumber, 4, true)
+	secret := NewTextInput("Code", InputSecret, 0, true)
+	zone := NewTextArea("Notes", "a\nb\nc\nd\ne", false, 2, true)
+	edit := NewTextArea("Brouillon", "", true, 3, true)
 	app := New(DefaultStyle(), NewGrid(
 		Row(port, secret),
 		Row(zone, edit),
 	))
 
-	app = press(t, app, key(tea.KeyEnter))
 	for _, ch := range []string{"1", "2", "a", "3", "4", "5"} {
 		app = press(t, app, textKey(ch))
 	}
-	if port.Value() != "1234" || !app.grid.Inside() {
-		t.Fatalf("nombre %q", port.Value())
+	if port.Value() != "1234" || !app.grid.Inside() || app.grid.Focus() != port {
+		t.Fatalf("nombre %q inside %v", port.Value(), app.grid.Inside())
+	}
+	app = press(t, app, key(tea.KeyDown))
+	if app.grid.Focus() != port {
+		t.Fatal("bas ne quitte plus le champ")
 	}
 	same := false
 	for _, line := range strings.Split(plain(port.View(DefaultStyle(), port, true)), "\n") {
@@ -158,12 +255,14 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 		t.Fatal("le label est à gauche du champ, sur la même ligne")
 	}
 	app = press(t, app, key(tea.KeyEnter))
-	if app.grid.Inside() || port.Value() != "1234" {
-		t.Fatal("entrée referme le champ")
+	if !app.grid.Inside() || port.Value() != "1234" {
+		t.Fatal("entrée laisse le champ ouvert")
 	}
 
 	app = press(t, app, key(tea.KeyRight))
-	app = press(t, app, key(tea.KeyEnter))
+	if app.grid.Focus() != secret {
+		t.Fatal("droite au bord passe au champ suivant")
+	}
 	app = press(t, app, textKey("q"))
 	app = press(t, app, textKey("z"))
 	if secret.Value() != "qz" || !app.grid.Inside() {
@@ -172,13 +271,25 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 	if view := plain(secret.View(DefaultStyle(), secret, true)); strings.Contains(view, "qz") || !strings.Contains(view, "••") {
 		t.Fatal(view)
 	}
-	app = press(t, app, key(tea.KeyEsc))
 	app = press(t, app, key(tea.KeyLeft))
+	app = press(t, app, key(tea.KeyLeft))
+	if app.grid.Focus() != secret {
+		t.Fatal("gauche déplace le curseur dans le champ")
+	}
+	app = press(t, app, key(tea.KeyLeft))
+	if app.grid.Focus() != port {
+		t.Fatal("gauche au bord revient au champ précédent")
+	}
+	for i := 0; i < 4; i++ {
+		app = press(t, app, key(tea.KeyRight))
+	}
+	if app.grid.Focus() != zone {
+		t.Fatalf("la file continue vers la zone, focus %T", app.grid.Focus())
+	}
 
 	if !strings.Contains(plain(zone.View(DefaultStyle(), nil, false)), "█") {
 		t.Fatal("la barre apparaît quand le texte dépasse")
 	}
-	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyEnter))
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyDown))
@@ -199,7 +310,7 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 
 func TestActions(t *testing.T) {
 	liste := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Jaune", "Jaune"))
-	sortie := NewTextArea("Sortie", "vide", false, 2)
+	sortie := NewTextArea("Sortie", "vide", false, 2, true)
 	n := 0
 	app := New(DefaultStyle(), NewGrid(Row(
 		liste,
@@ -261,7 +372,7 @@ func TestRemplissage(t *testing.T) {
 		}
 	}
 
-	zone := NewTextArea("Notes", "a\nb\nc\nd\ne\nf\ng\nh", false, 6)
+	zone := NewTextArea("Notes", "a\nb\nc\nd\ne\nf\ng\nh", false, 6, true)
 	row := NewGrid(Row(zone, NewButton("Ok", nil))).render(DefaultStyle())[0]
 	lines := strings.Split(plain(row), "\n")
 	last := bottomLine(lines)
@@ -322,11 +433,11 @@ func TestCadre(t *testing.T) {
 	}
 
 	text := "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk"
-	tall := plain(NewTextArea("Notes", text, false, 2).View(s.placed(22, 20), nil, false))
+	tall := plain(NewTextArea("Notes", text, false, 2, true).View(s.placed(22, 20), nil, false))
 	if strings.Contains(tall, "█") || !strings.Contains(tall, "k") {
 		t.Fatal("la zone doit montrer tout le texte")
 	}
-	short := plain(NewTextArea("Notes", text, false, 2).View(s.placed(22, 8), nil, false))
+	short := plain(NewTextArea("Notes", text, false, 2, true).View(s.placed(22, 8), nil, false))
 	if !strings.Contains(short, "█") || strings.Contains(short, "k") {
 		t.Fatal("la barre reste quand le texte dépasse la fenêtre")
 	}
@@ -410,15 +521,10 @@ func TestOnglets(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyEnter))
-	if !app.grid.Inside() || app.grid.Focus() != fiches {
-		t.Fatal("entrée ouvre la liste")
+	if app.grid.Inside() || app.grid.Focus() != fiches || fiches.Value() != "Une" {
+		t.Fatal("entrée choisit l'item sans ouvrir la liste")
 	}
-	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModCtrl})
-	if !app.grid.Inside() || vues.SelectedID() != "fiches" || app.grid.Focus() != fiches {
-		t.Fatal("ctrl+gauche sans nouvel onglet ne fait rien")
-	}
-
-	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
+	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
 	if vues.Cursor() != 1 || vues.SelectedID() != "notes" || app.grid.Focus() != notes || app.grid.Inside() {
 		t.Fatalf("curseur %d onglet %s", vues.Cursor(), vues.SelectedID())
 	}
@@ -439,25 +545,71 @@ func TestOnglets(t *testing.T) {
 	if !joined {
 		t.Fatal("le premier onglet fermé rejoint le panneau")
 	}
-	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
-	if vues.SelectedID() != "notes" || app.grid.Focus() != notes {
-		t.Fatal("ctrl+droite en bout d'onglets ne fait rien")
+	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
+	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches || app.grid.Inside() {
+		t.Fatal("tab en bout de liste revient au premier onglet")
+	}
+	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
+	if vues.SelectedID() != "notes" || app.grid.Focus() != notes || app.grid.Inside() {
+		t.Fatal("tab repart vers l'onglet suivant")
 	}
 	app = press(t, app, key(tea.KeyEnter))
 	if vues.SelectedID() != "notes" || strings.Contains(plain(app.View().Content), "Une") {
 		t.Fatal("entrée ne change pas d'onglet")
 	}
-	app = press(t, app, key(tea.KeyDown))
+	app = press(t, app, key(tea.KeyRight))
 	if app.grid.Focus() != bas {
-		t.Fatal("bas sort de l'onglet")
+		t.Fatal("droite sort de l'onglet")
 	}
-	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl})
-	if app.grid.Focus() != bas || vues.SelectedID() != "notes" {
-		t.Fatal("ctrl+droite hors de l'onglet ne change rien en bout de liste")
-	}
-	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModCtrl})
+	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
 	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches || app.grid.Inside() {
-		t.Fatal("ctrl+gauche depuis une autre zone ouvre l'onglet précédent")
+		t.Fatal("tab depuis une autre zone ouvre l'onglet suivant")
+	}
+}
+
+func TestOngletsReactifs(t *testing.T) {
+	memo := Memory()
+	memo.Set("fiches", "Fiches")
+	memo.Set("notes", "Notes")
+	src := ReactiveObject(TabItem, memo, map[string]string{"id": "id", "label": "value"})
+	fiches := NewButton("Panneau", nil)
+	notes := NewButton("ZoneNotes", nil)
+	plus := NewButton("ZonePlus", nil)
+	vues := NewTabList(src)
+	vues.SetTabs(
+		NewTab("fiches", NewGrid(Row(fiches))),
+		NewTab("notes", NewGrid(Row(notes))),
+		NewTab("plus", NewGrid(Row(plus))),
+	)
+	app := New(DefaultStyle(), NewGrid(Row(vues)))
+	view := plain(app.View().Content)
+	if !strings.Contains(view, "Fiches") || !strings.Contains(view, "Notes") || strings.Contains(view, "Plus") {
+		t.Fatal(view)
+	}
+	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches {
+		t.Fatal("le premier onglet reste affiché")
+	}
+	memo.Set("fiches", "Atelier")
+	memo.Set("plus", "Plus")
+	view = plain(app.View().Content)
+	if !strings.Contains(view, "Atelier") || !strings.Contains(view, "Plus") || strings.Contains(view, "Fiches") {
+		t.Fatal(view)
+	}
+	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches {
+		t.Fatalf("onglet %s", vues.SelectedID())
+	}
+	app = press(t, app, key(tea.KeyTab))
+	app = press(t, app, key(tea.KeyTab))
+	if vues.SelectedID() != "plus" || app.grid.Focus() != plus {
+		t.Fatalf("nouvel onglet %s", vues.SelectedID())
+	}
+	src.Reload()
+	view = plain(app.View().Content)
+	if strings.Contains(view, "Plus") || strings.Contains(view, "Atelier") || !strings.Contains(view, "Fiches") {
+		t.Fatal(view)
+	}
+	if vues.SelectedID() != "fiches" {
+		t.Fatalf("retour %s", vues.SelectedID())
 	}
 }
 
@@ -488,12 +640,12 @@ func TestOngletDansLaLargeur(t *testing.T) {
 	vues := NewTabList(NewTabItem("fiches", "Fiches"), NewTabItem("notes", "Notes"))
 	vues.SetTabs(
 		NewTab("fiches", NewGrid(Row(cat))),
-		NewTab("notes", NewGrid(Row(NewTextArea("Sortie", "En attente", false, 4)))),
+		NewTab("notes", NewGrid(Row(NewTextArea("Sortie", "En attente", false, 4, true)))),
 	)
 	parts := NewGrid(
 		Row(NewTitle("high-tui")),
 		Row(vues),
-		Row(NewTextInput("Nom", InputText, 24), NewButton("Exécuter", nil), NewButton("Recharger", nil)),
+		Row(NewTextInput("Nom", InputText, 24, true), NewButton("Exécuter", nil), NewButton("Recharger", nil)),
 	).render(DefaultStyle())
 	edge := rightBorder(parts[2])
 	if got := rightBorder(parts[1]); got != edge {

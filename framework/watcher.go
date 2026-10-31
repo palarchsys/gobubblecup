@@ -96,7 +96,7 @@ func generationOf(store Store) uint64 {
 
 func itemsOf(result any) []Item {
 	switch v := result.(type) {
-	case *reactiveObject:
+	case *reactiveObject[Item]:
 		return v.Items()
 	case *reactiveWatcher:
 		return v.Items()

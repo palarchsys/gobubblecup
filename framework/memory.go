@@ -252,6 +252,29 @@ func (m *memory) List(key string) []*memory {
 	return out
 }
 
+// restore remplace les entrées data par la photo donnée.
+// Les ajouts faits après cette photo disparaissent.
+func (m *memory) restore(entries []memEntry) {
+	m.mustWrite()
+	root := newBox()
+	for _, entry := range entries {
+		if entry.ID == "" {
+			continue
+		}
+		data := root.childOrCreate(entry.ID).childOrCreate("data")
+		for key, value := range entry.Fields {
+			leaf := data.childOrCreate(key)
+			leaf.text = value
+			leaf.has = true
+		}
+	}
+	m.head.mu.Lock()
+	m.head.root = root
+	m.head.gen++
+	m.head.mu.Unlock()
+	notify()
+}
+
 func (m *memory) mustWrite() {
 	if m == nil || m.readonly {
 		panic("framework: mémoire en lecture seule")

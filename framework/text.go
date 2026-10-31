@@ -17,24 +17,28 @@ const (
 )
 
 // TextInput est un champ d'une ligne. Le label est à gauche, la saisie à sa droite.
-// limit borne le nombre de caractères. Zéro ne borne pas. Échap referme le champ.
+// limit borne le nombre de caractères. Zéro ne borne pas.
+// border dessine le cadre. Sans cadre, les champs empilés se touchent.
+// Le focus suffit pour écrire : Entrée n'ouvre pas le champ.
 type textInput struct {
 	gate
-	title    string
-	value    []rune
-	origin   string
-	caret    int
-	kind     InputKind
-	limit    int
-	editable bool
+	title     string
+	value     []rune
+	origin    string
+	caret     int
+	kind      InputKind
+	limit     int
+	editable  bool
+	border    bool
+	overwrite bool
 }
 
-func TextInput(title string, kind InputKind, limit int) *textInput {
-	return NewTextInput(title, kind, limit)
+func TextInput(title string, kind InputKind, limit int, border bool) *textInput {
+	return NewTextInput(title, kind, limit, border)
 }
 
-func NewTextInput(title string, kind InputKind, limit int) *textInput {
-	return &textInput{gate: gate{on: true}, title: title, kind: kind, limit: limit, editable: true}
+func NewTextInput(title string, kind InputKind, limit int, border bool) *textInput {
+	return &textInput{gate: gate{on: true}, title: title, kind: kind, limit: limit, editable: true, border: border}
 }
 
 // Value est la valeur réactive du champ.
@@ -43,6 +47,49 @@ func (t *textInput) Value() string { return string(t.value) }
 func (t *textInput) SetValue(v string) {
 	t.value = []rune(v)
 	t.caret = len(t.value)
+}
+
+func (t *textInput) SetText(text string) { t.SetValue(text) }
+
+// Paste insère le texte du presse-papier. Les chiffres seuls passent dans un champ nombre.
+func (t *textInput) Paste(text string) {
+	if t == nil || !t.editable {
+		return
+	}
+	for _, r := range text {
+		if r == '\n' || r == '\r' || r < 0x20 {
+			continue
+		}
+		t.insert(r)
+	}
+}
+
+func (t *textInput) insert(r rune) {
+	if !t.accept(r) {
+		return
+	}
+	if t.overwrite && t.caret < len(t.value) {
+		t.value[t.caret] = r
+		t.caret++
+		return
+	}
+	if t.limit > 0 && len(t.value) >= t.limit {
+		return
+	}
+	next := make([]rune, 0, len(t.value)+1)
+	next = append(next, t.value[:t.caret]...)
+	next = append(next, r)
+	next = append(next, t.value[t.caret:]...)
+	t.value = next
+	t.caret++
+}
+
+// deleteForward retire le caractère sous le curseur. Le curseur ne bouge pas.
+func (t *textInput) deleteForward() {
+	if !t.editable || t.caret < 0 || t.caret >= len(t.value) {
+		return
+	}
+	t.value = append(t.value[:t.caret], t.value[t.caret+1:]...)
 }
 
 func (t *textInput) SetEditable(on bool) { t.editable = on }
@@ -59,8 +106,8 @@ func (t *textInput) Handle(inside bool, key string) (bool, tea.Cmd) {
 		return false, nil
 	}
 	switch key {
-	case "enter", "esc":
-		return false, nil
+	case "enter", "esc", "up", "down":
+		return true, nil
 	case "left":
 		if t.caret > 0 {
 			t.caret--
@@ -74,15 +121,15 @@ func (t *textInput) Handle(inside bool, key string) (bool, tea.Cmd) {
 			t.value = append(t.value[:t.caret-1], t.value[t.caret:]...)
 			t.caret--
 		}
+	case "delete", "del":
+		t.deleteForward()
+	case "insert", "ins":
+		if t.editable {
+			t.overwrite = !t.overwrite
+		}
 	default:
-		r, ok := printable(key)
-		if ok && t.editable && t.accept(r) && (t.limit <= 0 || len(t.value) < t.limit) {
-			next := make([]rune, 0, len(t.value)+1)
-			next = append(next, t.value[:t.caret]...)
-			next = append(next, r)
-			next = append(next, t.value[t.caret:]...)
-			t.value = next
-			t.caret++
+		if r, ok := printable(key); ok {
+			t.insert(r)
 		}
 	}
 	return true, nil
@@ -96,7 +143,17 @@ func (t *textInput) accept(r rune) bool {
 }
 
 func (t *textInput) View(s Style, focused Widget, inside bool) string {
-	inner := s.content(s.Width)
+	if t.Disabled() {
+		s = s.dimmed()
+	}
+	width := s.Width
+	if width < 1 {
+		width = 1
+	}
+	inner := width
+	if t.border {
+		inner = s.content(width)
+	}
 	label := t.title
 	labelW := lipgloss.Width(label)
 	gap := 0
@@ -121,15 +178,18 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 	if t.kind == InputSecret {
 		shown = strings.Repeat("•", len(t.value))
 	}
-	if inside && focused == t {
-		shown = caretAt(shown, t.caret)
-	}
 	line := ""
 	if labelW > 0 {
 		line = s.line(label, s.Accent, true, labelW) + s.paint(s.Text, false, " ")
 	}
-	line += s.line(shown, s.Text, false, fieldW)
-	return s.box(line, focusedEdge(t, focused, inside), s.Width, s.Height, "")
+	line += s.caretLine(shown, t.caret, inside && focused == t, fieldW)
+	if !t.border {
+		if gap := width - lipgloss.Width(line); gap > 0 {
+			line += s.shade(gap)
+		}
+		return line
+	}
+	return s.box(line, focusedEdge(t, focused, inside), width, s.Height, "")
 }
 
 // TextArea est un bloc de texte. rows est le nombre de lignes visibles.
@@ -137,21 +197,23 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 // Sinon, Entrée ouvre, haut et bas défilent, Entrée referme.
 type textArea struct {
 	gate
-	title    string
-	lines    []string
-	origin   []string
-	editable bool
-	rows     int
-	line     int
-	col      int
-	top      int
+	title     string
+	lines     []string
+	origin    []string
+	editable  bool
+	rows      int
+	line      int
+	col       int
+	top       int
+	border    bool
+	overwrite bool
 }
 
-func TextArea(title, text string, editable bool, rows int) *textArea {
-	return NewTextArea(title, text, editable, rows)
+func TextArea(title, text string, editable bool, rows int, border bool) *textArea {
+	return NewTextArea(title, text, editable, rows, border)
 }
 
-func NewTextArea(title, text string, editable bool, rows int) *textArea {
+func NewTextArea(title, text string, editable bool, rows int, border bool) *textArea {
 	if rows < 1 {
 		rows = 1
 	}
@@ -163,7 +225,29 @@ func NewTextArea(title, text string, editable bool, rows int) *textArea {
 		origin:   append([]string(nil), lines...),
 		editable: editable,
 		rows:     rows,
+		border:   border,
 	}
+}
+
+// Paste insère le texte du presse-papier. Une zone en lecture ne change pas.
+func (t *textArea) Paste(text string) {
+	if t == nil || !t.editable || text == "" {
+		return
+	}
+	for _, r := range text {
+		if r == '\r' {
+			continue
+		}
+		if r == '\n' {
+			t.splitLine()
+			continue
+		}
+		if r < 0x20 {
+			continue
+		}
+		t.insert(r)
+	}
+	t.follow()
 }
 
 func (t *textArea) Text() string { return strings.Join(t.lines, "\n") }
@@ -216,6 +300,10 @@ func (t *textArea) Handle(inside bool, key string) (bool, tea.Cmd) {
 		t.step(1)
 	case "backspace":
 		t.backspace()
+	case "delete", "del":
+		t.deleteForward()
+	case "insert", "ins":
+		t.overwrite = !t.overwrite
 	default:
 		if r, ok := printable(key); ok {
 			t.insert(r)
@@ -238,7 +326,11 @@ func (t *textArea) visible(s Style) int {
 	if t.title != "" {
 		title = 1
 	}
-	avail := s.Height - 2 - 2*s.padY() - title
+	chrome := 2
+	if !t.border {
+		chrome = 0
+	}
+	avail := s.Height - chrome - 2*s.padY() - title
 	if avail > rows {
 		return avail
 	}
@@ -246,7 +338,13 @@ func (t *textArea) visible(s Style) int {
 }
 
 func (t *textArea) View(s Style, focused Widget, inside bool) string {
-	inner := s.content(s.Width)
+	if t.Disabled() {
+		s = s.dimmed()
+	}
+	inner := s.Width
+	if t.border {
+		inner = s.content(s.Width)
+	}
 	open := inside && focused == t
 	visible := t.visible(s)
 	n := len(t.lines)
@@ -288,10 +386,12 @@ func (t *textArea) View(s Style, focused Widget, inside bool) string {
 		if at >= 0 && at < n {
 			src = t.lines[at]
 		}
+		var row string
 		if open && t.editable && at == t.line {
-			src = caretAt(src, t.col)
+			row = s.caretLine(src, t.col, true, textW)
+		} else {
+			row = s.line(src, s.Text, false, textW)
 		}
-		row := fit(s.paint(s.Text, false, clipWidth(src, textW)), textW, s)
 		if scroll {
 			glyph := s.Track
 			ink := s.Idle
@@ -303,7 +403,11 @@ func (t *textArea) View(s Style, focused Widget, inside bool) string {
 		}
 		lines = append(lines, row)
 	}
-	return s.box(strings.Join(lines, "\n"), focusedEdge(t, focused, inside), s.Width, s.Height, "")
+	body := strings.Join(lines, "\n")
+	if !t.border {
+		return body
+	}
+	return s.box(body, focusedEdge(t, focused, inside), s.Width, s.Height, "")
 }
 
 func (t *textArea) clamp() {
@@ -347,12 +451,35 @@ func (t *textArea) follow() {
 func (t *textArea) insert(r rune) {
 	t.clamp()
 	row := []rune(t.lines[t.line])
+	if t.overwrite && t.col < len(row) {
+		row[t.col] = r
+		t.lines[t.line] = string(row)
+		t.col++
+		return
+	}
 	next := make([]rune, 0, len(row)+1)
 	next = append(next, row[:t.col]...)
 	next = append(next, r)
 	next = append(next, row[t.col:]...)
 	t.lines[t.line] = string(next)
 	t.col++
+}
+
+// deleteForward retire le caractère sous le curseur.
+// En fin de ligne, la ligne suivante est collée.
+func (t *textArea) deleteForward() {
+	t.clamp()
+	row := []rune(t.lines[t.line])
+	if t.col < len(row) {
+		row = append(row[:t.col], row[t.col+1:]...)
+		t.lines[t.line] = string(row)
+		return
+	}
+	if t.line >= len(t.lines)-1 {
+		return
+	}
+	t.lines[t.line] += t.lines[t.line+1]
+	t.lines = append(t.lines[:t.line+1], t.lines[t.line+2:]...)
 }
 
 func (t *textArea) splitLine() {
@@ -428,13 +555,65 @@ func printable(key string) (rune, bool) {
 	return r[0], true
 }
 
-func caretAt(text string, col int) string {
-	r := []rune(text)
-	if col < 0 {
-		col = 0
+// caretLine peint le texte sur width colonnes.
+// Le curseur recouvre le caractère : il n'ajoute pas de colonne au milieu.
+// En fin de texte, il occupe une colonne après le dernier caractère.
+func (s Style) caretLine(text string, caret int, show bool, width int) string {
+	if width < 1 {
+		width = 1
 	}
-	if col > len(r) {
-		col = len(r)
+	runes := []rune(text)
+	if caret < 0 {
+		caret = 0
 	}
-	return string(r[:col]) + "▏" + string(r[col:])
+	if caret > len(runes) {
+		caret = len(runes)
+	}
+	widthOf := func(r rune) int {
+		w := lipgloss.Width(string(r))
+		if w < 1 {
+			w = 1
+		}
+		return w
+	}
+	start := 0
+	if show {
+		need := 1
+		if caret < len(runes) {
+			need = widthOf(runes[caret])
+		}
+		start = caret
+		for start > 0 {
+			w := widthOf(runes[start-1])
+			if need+w > width {
+				break
+			}
+			need += w
+			start--
+		}
+	}
+	var b strings.Builder
+	used := 0
+	for i := start; i < len(runes); i++ {
+		w := widthOf(runes[i])
+		tail := 0
+		if show && caret == len(runes) {
+			tail = 1
+		}
+		if used+w+tail > width {
+			break
+		}
+		glyph := string(runes[i])
+		if show && i == caret {
+			b.WriteString(s.paintOn(s.paper(), s.Focus, false, glyph))
+		} else {
+			b.WriteString(s.paint(s.Text, false, glyph))
+		}
+		used += w
+	}
+	if show && caret >= len(runes) && used < width {
+		b.WriteString(s.paintOn(s.paper(), s.Focus, false, " "))
+		used++
+	}
+	return fit(b.String(), width, s)
 }

@@ -9,8 +9,10 @@ import (
 // Category est un contour dont le sous-titre est posé sur le trait haut.
 // Elle contient d'autres objets, des listes par exemple, et ne prend pas le focus.
 type category struct {
-	legend string
-	kids   []Widget
+	legend   string
+	kids     []Widget
+	disabled bool
+	held     []Widget
 }
 
 func Category(legend string, kids ...Widget) *category { return NewCategory(legend, kids...) }
@@ -27,6 +29,9 @@ func NewCategory(legend string, kids ...Widget) *category {
 func (c *category) Kids() []Widget { return c.kids }
 
 func (c *category) Active() bool {
+	if c == nil || c.disabled {
+		return false
+	}
 	for _, kid := range c.kids {
 		if kid.Active() {
 			return true
@@ -34,6 +39,36 @@ func (c *category) Active() bool {
 	}
 	return false
 }
+
+func (c *category) Disable() {
+	if c == nil || c.disabled {
+		return
+	}
+	c.disabled = true
+	c.held = nil
+	for _, kid := range c.kids {
+		if kid.Disabled() {
+			continue
+		}
+		kid.Disable()
+		c.held = append(c.held, kid)
+	}
+	notify()
+}
+
+func (c *category) Enable() {
+	if c == nil || !c.disabled {
+		return
+	}
+	c.disabled = false
+	for _, kid := range c.held {
+		kid.Enable()
+	}
+	c.held = nil
+	notify()
+}
+
+func (c *category) Disabled() bool { return c != nil && c.disabled }
 
 func (c *category) SetActive(on bool) {
 	for _, kid := range c.kids {
@@ -52,6 +87,9 @@ func (c *category) Reload() {
 func (c *category) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
 
 func (c *category) View(s Style, focused Widget, inside bool) string {
+	if c.Disabled() {
+		s = s.dimmed()
+	}
 	padX, padY := s.padX(), s.padY()
 	width := 0
 	if s.fit {

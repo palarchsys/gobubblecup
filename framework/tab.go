@@ -50,6 +50,12 @@ func (r *tabRow) Active() bool { return true }
 
 func (r *tabRow) SetActive(bool) {}
 
+func (r *tabRow) Disable() {}
+
+func (r *tabRow) Enable() {}
+
+func (r *tabRow) Disabled() bool { return false }
+
 func (r *tabRow) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
 
 func (r *tabRow) View(Style, Widget, bool) string { return "" }
@@ -62,21 +68,71 @@ type tabList struct {
 	tabs     []*tab
 	cursor   int
 	selected int
+	src      tabSource
+	held     []Widget
 }
 
-func TabList(items ...*tabItem) *tabList { return NewTabList(items...) }
+// tabSource reconstruit les onglets, comme un ReactiveObject(TabItem, ...).
+type tabSource interface{ Items() []*tabItem }
 
-func NewTabList(items ...*tabItem) *tabList {
-	for _, item := range items {
-		if item == nil {
+func TabList(args ...any) *tabList { return NewTabList(args...) }
+
+func NewTabList(args ...any) *tabList {
+	var items []*tabItem
+	var src tabSource
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case *tabItem:
+			if v == nil {
+				panic("framework: item d'onglet nul")
+			}
+			items = append(items, v)
+		case *reactiveObject[*tabItem]:
+			if src != nil {
+				panic("framework: une seule source d'onglets")
+			}
+			src = v
+		case nil:
 			panic("framework: item d'onglet nul")
+		default:
+			panic("framework: argument d'onglet inattendu")
 		}
 	}
-	list := &tabList{gate: gate{on: true}, items: items, selected: -1}
-	if len(items) > 0 {
+	if src != nil && len(items) > 0 {
+		panic("framework: onglets fixes et réactifs")
+	}
+	list := &tabList{gate: gate{on: true}, items: items, selected: -1, src: src}
+	list.sync()
+	if src == nil && len(items) > 0 {
 		list.selected = 0
 	}
 	return list
+}
+
+// sync relit la mémoire. L'onglet affiché reste celui du même id.
+func (t *tabList) sync() {
+	if t == nil || t.src == nil {
+		return
+	}
+	id := ""
+	if t.selected >= 0 && t.selected < len(t.items) && t.items[t.selected] != nil {
+		id = t.items[t.selected].id
+	}
+	next := t.src.Items()
+	t.items = next
+	t.selected = -1
+	t.cursor = 0
+	if len(next) == 0 {
+		return
+	}
+	t.selected = 0
+	for i, item := range next {
+		if item != nil && item.id == id {
+			t.selected = i
+			t.cursor = i
+			return
+		}
+	}
 }
 
 func (t *tabList) SetTabs(tabs ...*tab) {
@@ -88,10 +144,14 @@ func (t *tabList) SetTabs(tabs ...*tab) {
 	t.tabs = tabs
 }
 
-func (t *tabList) Cursor() int { return t.cursor }
+func (t *tabList) Cursor() int {
+	t.sync()
+	return t.cursor
+}
 
 func (t *tabList) SelectedID() string {
-	if t.selected < 0 || t.selected >= len(t.items) {
+	t.sync()
+	if t.selected < 0 || t.selected >= len(t.items) || t.items[t.selected] == nil {
 		return ""
 	}
 	return t.items[t.selected].id
@@ -104,6 +164,49 @@ func (t *tabList) Kids() []Widget {
 		out = append(out, &tabRow{cells: row})
 	}
 	return out
+}
+
+func (t *tabList) Disable() {
+	if t == nil || t.gate.disabled {
+		return
+	}
+	t.gate.disabled = true
+	t.held = nil
+	t.each(func(w Widget) {
+		if w.Disabled() {
+			return
+		}
+		w.Disable()
+		t.held = append(t.held, w)
+	})
+	notify()
+}
+
+func (t *tabList) Enable() {
+	if t == nil || !t.gate.disabled {
+		return
+	}
+	t.gate.disabled = false
+	for _, w := range t.held {
+		w.Enable()
+	}
+	t.held = nil
+	notify()
+}
+
+func (t *tabList) each(fn func(Widget)) {
+	for _, tab := range t.tabs {
+		if tab == nil || tab.grid == nil {
+			continue
+		}
+		for _, row := range tab.grid.rows {
+			for _, w := range row {
+				if w != nil {
+					fn(w)
+				}
+			}
+		}
+	}
 }
 
 func (t *tabList) SetActive(on bool) {
@@ -133,11 +236,17 @@ func (t *tabList) Reload() {
 
 func (t *tabList) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
 
-// move change d'onglet. Faux si la direction ne mène à aucun autre onglet.
+// move change d'onglet et boucle d'un bout à l'autre.
+// Faux s'il n'y a pas d'autre onglet.
 func (t *tabList) move(delta int) bool {
-	next := t.cursor + delta
-	if next < 0 || next >= len(t.items) || next == t.cursor {
+	t.sync()
+	n := len(t.items)
+	if n < 2 {
 		return false
+	}
+	next := (t.cursor + delta) % n
+	if next < 0 {
+		next += n
 	}
 	t.cursor = next
 	t.selected = next
@@ -151,7 +260,7 @@ func (t *tabList) firstFocus() Widget {
 		return nil
 	}
 	if spots := (&grid{rows: rows}).spots(); len(spots) > 0 {
-		return spots[0].widget
+		return spots[0]
 	}
 	return nil
 }
@@ -170,6 +279,10 @@ func (t *tabList) activeRows() [][]Widget {
 }
 
 func (t *tabList) View(s Style, focused Widget, inside bool) string {
+	if t.Disabled() {
+		s = s.dimmed()
+	}
+	t.sync()
 	padX := s.padX()
 	rows := t.activeRows()
 	// Mesure à la largeur d'origine. La largeur imposée par l'interface

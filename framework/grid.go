@@ -34,15 +34,10 @@ func (g *grid) Focus() Widget { return g.focus }
 
 func (g *grid) Inside() bool { return g.inside }
 
-type spot struct {
-	widget Widget
-	band   int
-	col    int
-}
-
-func (g *grid) spots() []spot {
-	var out []spot
-	band := 0
+// spots est la file affichée, de haut-gauche vers droite-bas.
+// Seules les zones actives de l'onglet visible y entrent.
+func (g *grid) spots() []Widget {
+	var out []Widget
 	for _, row := range g.rows {
 		height := 1
 		for _, w := range row {
@@ -51,33 +46,107 @@ func (g *grid) spots() []spot {
 			}
 		}
 		for sub := 0; sub < height; sub++ {
-			col := 0
 			for _, w := range row {
 				for _, child := range lineAt(w, sub) {
 					if child != nil && child.Active() {
-						out = append(out, spot{widget: child, band: band, col: col})
+						out = append(out, child)
 					}
-					col++
 				}
 			}
-			band++
 		}
 	}
 	return out
 }
 
+func isList(w Widget) bool {
+	switch w.(type) {
+	case *listUniq, *listMult:
+		return true
+	default:
+		return false
+	}
+}
+
+// reveal affiche l'onglet qui contient la zone et y pose le focus.
+func (g *grid) reveal(target Widget) bool {
+	if target == nil {
+		return false
+	}
+	for _, list := range g.tabLists() {
+		for i, tab := range list.tabs {
+			if tab == nil || tab.grid == nil || !gridHolds(tab.grid, target) {
+				continue
+			}
+			list.cursor = i
+			list.selected = i
+			g.inside = false
+			g.focus = target
+			g.follow()
+			return true
+		}
+	}
+	if gridHolds(g, target) {
+		g.inside = false
+		g.focus = target
+		g.follow()
+		return true
+	}
+	return false
+}
+
+func gridHolds(g *grid, target Widget) bool {
+	if g == nil {
+		return false
+	}
+	for _, row := range g.rows {
+		for _, cell := range row {
+			if widgetHolds(cell, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func widgetHolds(w, target Widget) bool {
+	if w == nil || target == nil {
+		return false
+	}
+	if w == target {
+		return true
+	}
+	group, ok := w.(kids)
+	if !ok {
+		return false
+	}
+	for _, kid := range group.Kids() {
+		if widgetHolds(kid, target) {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *grid) focusFirst() {
 	g.inside = false
 	if spots := g.spots(); len(spots) > 0 {
-		g.focus = spots[0].widget
-		return
+		g.focus = spots[0]
+	} else {
+		g.focus = nil
 	}
-	g.focus = nil
+	g.follow()
+}
+
+// follow ouvre la saisie dès que le focus est un champ d'une ligne.
+func (g *grid) follow() {
+	if _, ok := g.focus.(*textInput); ok {
+		g.inside = true
+	}
 }
 
 func (g *grid) Key(key string) tea.Cmd {
-	if key == "ctrl+left" || key == "ctrl+right" {
-		if g.switchTab(key) {
+	if key == "tab" {
+		if g.switchTab() {
 			return nil
 		}
 	}
@@ -89,12 +158,33 @@ func (g *grid) Key(key string) tea.Cmd {
 	if w == nil {
 		return nil
 	}
+	if isList(w) && (key == "up" || key == "down" || key == "enter") {
+		_, cmd := w.Handle(false, key)
+		g.inside = false
+		return cmd
+	}
+	if field, ok := w.(*textInput); ok {
+		if key == "up" || key == "down" {
+			g.inside = true
+			return nil
+		}
+		if (key == "left" && field.caret == 0) ||
+			(key == "right" && field.caret >= len(field.value)) {
+			g.inside = false
+			g.move(key)
+			g.follow()
+			return nil
+		}
+		g.inside = true
+		_, cmd := field.Handle(true, key)
+		return cmd
+	}
 	if g.inside {
 		inside, cmd := w.Handle(true, key)
 		g.inside = inside
 		return cmd
 	}
-	if key == "enter" || key == "ctrl+left" || key == "ctrl+right" {
+	if key == "enter" || key == "tab" {
 		inside, cmd := w.Handle(false, key)
 		g.inside = inside
 		return cmd
@@ -103,9 +193,9 @@ func (g *grid) Key(key string) tea.Cmd {
 	return nil
 }
 
-// switchTab consomme Ctrl+flèche s'il existe une liste d'onglets.
-// Sans nouvel onglet dans cette direction, le focus reste où il est.
-func (g *grid) switchTab(key string) bool {
+// switchTab consomme Tab s'il existe une liste d'onglets.
+// Tab va vers la droite. Le parcours boucle.
+func (g *grid) switchTab() bool {
 	lists := g.tabLists()
 	if len(lists) == 0 {
 		return false
@@ -113,16 +203,16 @@ func (g *grid) switchTab(key string) bool {
 	if len(lists) > 1 {
 		panic("framework: une seule liste d'onglets par interface")
 	}
-	delta := 1
-	if key == "ctrl+left" {
-		delta = -1
+	if lists[0].Disabled() {
+		return true
 	}
-	if !lists[0].move(delta) {
+	if !lists[0].move(1) {
 		return true
 	}
 	g.inside = false
 	if w := lists[0].firstFocus(); w != nil {
 		g.focus = w
+		g.follow()
 		return true
 	}
 	g.focusFirst()
@@ -172,103 +262,76 @@ func (g *grid) tabLists() []*tabList {
 }
 
 func (g *grid) has(target Widget) bool {
-	for _, spot := range g.spots() {
-		if spot.widget == target {
+	for _, w := range g.spots() {
+		if w == target {
 			return true
 		}
 	}
 	return false
 }
 
+func (g *grid) canPaste() bool {
+	switch w := g.focus.(type) {
+	case *textInput:
+		return w.editable
+	case *textArea:
+		return w.editable
+	default:
+		return false
+	}
+}
+
+func (g *grid) paste(text string) {
+	if g == nil || text == "" || g.focus == nil || !g.focus.Active() {
+		return
+	}
+	switch w := g.focus.(type) {
+	case *textInput:
+		w.Paste(text)
+		g.inside = true
+	case *textArea:
+		w.Paste(text)
+		if w.editable {
+			g.inside = true
+		}
+	}
+}
+
+// move avance dans la file affichée. Droite va vers le bas-droit, gauche remonte.
+// Les deux bouts se rejoignent. Haut et bas ne changent pas de zone.
 func (g *grid) move(key string) {
+	if key != "left" && key != "right" {
+		return
+	}
 	spots := g.spots()
 	if len(spots) == 0 {
 		return
 	}
-	here, ok := findSpot(spots, g.focus)
-	if !ok {
-		g.focus = spots[0].widget
+	index := 0
+	found := false
+	for i, w := range spots {
+		if w == g.focus {
+			index = i
+			found = true
+			break
+		}
+	}
+	if !found {
+		g.focus = spots[0]
 		return
 	}
-	switch key {
-	case "left":
-		g.focus = neighborCol(spots, here, -1)
-	case "right":
-		g.focus = neighborCol(spots, here, 1)
-	case "up":
-		g.focus = neighborBand(spots, here, -1)
-	case "down":
-		g.focus = neighborBand(spots, here, 1)
-	}
-}
-
-func findSpot(spots []spot, w Widget) (spot, bool) {
-	for _, s := range spots {
-		if s.widget == w {
-			return s, true
+	if key == "right" {
+		index++
+		if index >= len(spots) {
+			index = 0
+		}
+	} else {
+		index--
+		if index < 0 {
+			index = len(spots) - 1
 		}
 	}
-	return spot{}, false
-}
-
-func neighborCol(spots []spot, here spot, dir int) Widget {
-	best := here.widget
-	bestDist := 0
-	found := false
-	for _, s := range spots {
-		delta := s.col - here.col
-		if s.band != here.band || delta*dir <= 0 {
-			continue
-		}
-		if delta < 0 {
-			delta = -delta
-		}
-		if !found || delta < bestDist {
-			best = s.widget
-			bestDist = delta
-			found = true
-		}
-	}
-	return best
-}
-
-func neighborBand(spots []spot, here spot, dir int) Widget {
-	minB, maxB := spots[0].band, spots[0].band
-	for _, s := range spots[1:] {
-		if s.band < minB {
-			minB = s.band
-		}
-		if s.band > maxB {
-			maxB = s.band
-		}
-	}
-	for band := here.band + dir; band >= minB && band <= maxB; band += dir {
-		if w, ok := nearest(spots, band, here.col); ok {
-			return w
-		}
-	}
-	return here.widget
-}
-
-func nearest(spots []spot, band, want int) (Widget, bool) {
-	var best Widget
-	dist := 0
-	found := false
-	for _, s := range spots {
-		if s.band != band {
-			continue
-		}
-		d := s.col - want
-		if d < 0 {
-			d = -d
-		}
-		if !found || d < dist {
-			best = s.widget
-			dist = d
-			found = true
-		}
-	}
-	return best, found
+	g.focus = spots[index]
 }
 
 // render mesure chaque objet, puis donne le vide de droite au dernier
@@ -276,6 +339,10 @@ func nearest(spots []spot, band, want int) (Widget, bool) {
 // L'écart horizontal entre deux objets est une seule cellule, de la couleur des zones.
 // Les rangées se suivent sans ligne vide.
 func (g *grid) render(s Style) []string {
+	if g.focus != nil && !g.focus.Active() {
+		g.inside = false
+		g.focusFirst()
+	}
 	gap := s.margin()
 	type size struct{ w, h int }
 	span := func(sizes []size) int {

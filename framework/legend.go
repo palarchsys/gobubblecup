@@ -19,8 +19,8 @@ func (l *Legend) View(s Style, _ Widget, _ bool) string {
 
 func legendLines(s Style) []string {
 	rows := [][]struct{ key, text string }{
-		{{"↑↓←→", "focus"}, {"entrée", "ouvre ou choisit"}, {"ctrl+←→", "onglet"}},
-		{{"échap", "sort"}, {"q", "quitte"}},
+		{{"←→", "focus"}, {"↑↓", "item"}, {"entrée", "choisit"}, {"tab", "onglet"}},
+		{{"échap", "sort"}, {"ctrl+v", "colle"}, {"q", "quitte"}},
 	}
 	out := make([]string, len(rows))
 	for i, row := range rows {

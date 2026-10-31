@@ -60,6 +60,11 @@ func TestListeReactive(t *testing.T) {
 	if !strings.Contains(view, "Noir") || list.Value() != "magenta" {
 		t.Fatalf("valeur %q\n%s", list.Value(), view)
 	}
+	list.Reload()
+	view = plain(list.View(DefaultStyle(), list, false))
+	if strings.Contains(view, "Noir") || list.Value() != "" || !strings.Contains(view, "Cyan") {
+		t.Fatalf("recharge %q\n%s", list.Value(), view)
+	}
 
 	multi := ListMult("Pièces", ListItem("casque", "Casque"), ListItem("veste", "Veste"))
 	multi.Handle(true, "enter")
@@ -166,7 +171,7 @@ func TestReactiveWatcher(t *testing.T) {
 	if appels != 3 || !strings.Contains(view, "croise") {
 		t.Fatalf("croisement %d\n%s", appels, view)
 	}
-	if _, ok := watcher.Result().(*reactiveObject); !ok {
+	if _, ok := watcher.Result().(*reactiveObject[Item]); !ok {
 		t.Fatal("résultat")
 	}
 }
