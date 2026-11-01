@@ -1,4 +1,4 @@
-module github.com/palarchsys/GOBubbleCup
+module github.com/palarchsys/gobubblecup
 
 go 1.27.3
 

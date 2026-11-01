@@ -1,8 +1,8 @@
-# GOBubbleCup
+# gobubblecup
 
-GOBubbleCup est un framework Go pour écrire une interface en terminal. Vous décrivez des objets, une mémoire et, si besoin, des scripts. Le framework dessine l'écran, déplace le focus et met les listes à jour quand les données changent.
+gobubblecup est un framework Go pour écrire une interface en terminal. Vous décrivez des objets, une mémoire et, si besoin, des scripts. Le framework dessine l'écran, déplace le focus et met les listes à jour quand les données changent.
 
-Le module publié est `github.com/palarchsys/GOBubbleCup`. Le paquet à importer est `framework`. La version de ce guide est `v0.4.0-beta.4` (étiquette `beta-0.4`).
+Le module publié est `github.com/palarchsys/gobubblecup`. Le paquet à importer est `framework`. La version de ce guide est `v0.4.0-beta.5` (étiquette `beta-0.5`).
 
 Vous ne choisissez pas les couleurs, les marges ni les cadres. `DefaultStyle` les fixe. Vos objets ne portent que leurs données.
 
@@ -24,7 +24,7 @@ Dans un dossier vide, hors de ce dépôt :
 mkdir mon-tui
 cd mon-tui
 go mod init example.com/mon-tui
-go get github.com/palarchsys/GOBubbleCup@v0.4.0-beta.4
+go get github.com/palarchsys/gobubblecup@v0.4.0-beta.5
 ```
 
 `go mod init` crée `go.mod`. Le chemin `example.com/mon-tui` est le nom de votre module : remplacez-le par le vôtre.
@@ -32,7 +32,7 @@ go get github.com/palarchsys/GOBubbleCup@v0.4.0-beta.4
 `go get` télécharge le framework et écrit la dépendance. `go.mod` contient alors une ligne de cette forme :
 
 ```
-require github.com/palarchsys/GOBubbleCup v0.4.0-beta.4
+require github.com/palarchsys/gobubblecup v0.4.0-beta.5
 ```
 
 `go.sum` enregistre les sommes de contrôle. Conservez les deux fichiers.
@@ -48,7 +48,7 @@ import (
     "fmt"
 
     tea "charm.land/bubbletea/v2"
-    "github.com/palarchsys/GOBubbleCup/framework"
+    "github.com/palarchsys/gobubblecup/framework"
 )
 
 func main() {
@@ -67,7 +67,7 @@ func main() {
     }})
 
     grille := framework.Grid(
-        framework.Row(framework.Title("GOBubbleCup")),
+        framework.Row(framework.Title("gobubblecup")),
         framework.Row(framework.Category("Catalogue", teintes)),
         framework.Row(nom, ajouter),
     )
@@ -111,11 +111,11 @@ Pour recompiler après un changement de `main.go`, relancez `go build -o mon-tui
 
 ### Depuis ce dépôt
 
-Si vous avez cloné `github.com/palarchsys/GOBubbleCup` :
+Si vous avez cloné `github.com/palarchsys/gobubblecup` :
 
 ```bash
-git clone https://github.com/palarchsys/GOBubbleCup.git
-cd GOBubbleCup
+git clone https://github.com/palarchsys/gobubblecup.git
+cd gobubblecup
 go test -count=1 ./framework
 go build -o bonjour ./examples/bonjour
 ./bonjour
@@ -182,7 +182,7 @@ Chaque constructeur court a un alias `New…` qui fait la même chose. `NewRunti
 ### Titre
 
 ```go
-framework.Title("GOBubbleCup")
+framework.Title("gobubblecup")
 ```
 
 Bandeau inactif. Il s'étire sur la largeur de sa ligne. Il ne prend pas le focus.

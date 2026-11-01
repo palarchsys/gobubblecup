@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/palarchsys/GOBubbleCup/framework"
+	"github.com/palarchsys/gobubblecup/framework"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 	}})
 
 	grille := framework.Grid(
-		framework.Row(framework.Title("GOBubbleCup")),
+		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(framework.Category("Catalogue", teintes)),
 		framework.Row(nom, ajouter),
 	)
