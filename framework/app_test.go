@@ -39,7 +39,7 @@ func TestDemoRechargerEtEcho(t *testing.T) {
 	recharger := Button("Recharger", Reload{Target: teintes})
 	echo := Button("Echo", Exec{Script: "echo", Args: []string{"bonjour"}, Into: sortie})
 	app := New(DefaultStyle(), Grid(
-		Row(Title("high-tui")),
+		Row(Title("gobubblecup")),
 		Row(vues),
 		Row(recharger, echo),
 	))
@@ -106,7 +106,7 @@ func TestFlechesEntreZonesActives(t *testing.T) {
 	executer := NewButton("Exécuter", nil)
 	recharger := NewButton("Recharger", nil)
 	app := New(DefaultStyle(), NewGrid(
-		Row(NewTitle("high-tui")),
+		Row(NewTitle("gobubblecup")),
 		Row(cat, executer),
 		Row(recharger),
 	))
@@ -360,7 +360,7 @@ func TestActions(t *testing.T) {
 
 func TestRemplissage(t *testing.T) {
 	g := NewGrid(
-		Row(NewTitle("high-tui")),
+		Row(NewTitle("gobubblecup")),
 		Row(NewListUniq("Large", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta")), NewButton("Autre", nil)),
 		Row(NewButton("Ok", nil)),
 	)
@@ -447,7 +447,7 @@ func TestCadre(t *testing.T) {
 		t.Fatal("fond uni")
 	}
 	lines := strings.Split(plain(New(s, NewGrid(
-		Row(NewTitle("high-tui")),
+		Row(NewTitle("gobubblecup")),
 		Row(NewButton("Ok", nil)),
 	)).View().Content), "\n")
 	bottom, next := -1, -1
@@ -643,7 +643,7 @@ func TestOngletDansLaLargeur(t *testing.T) {
 		NewTab("notes", NewGrid(Row(NewTextArea("Sortie", "En attente", false, 4, true)))),
 	)
 	parts := NewGrid(
-		Row(NewTitle("high-tui")),
+		Row(NewTitle("gobubblecup")),
 		Row(vues),
 		Row(NewTextInput("Nom", InputText, 24, true), NewButton("Exécuter", nil), NewButton("Recharger", nil)),
 	).render(DefaultStyle())
