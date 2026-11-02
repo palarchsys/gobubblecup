@@ -2,7 +2,7 @@
 
 gobubblecup est un framework Go pour écrire une interface en terminal. Vous décrivez des objets, une mémoire et, si besoin, des scripts. Le framework dessine l'écran, déplace le focus et met les listes à jour quand les données changent.
 
-Le module publié est `github.com/palarchsys/gobubblecup`. Le paquet à importer est `framework`. La version de ce guide est `v0.4.0-beta.5` (étiquette `beta-0.5`).
+Le module publié est `github.com/palarchsys/gobubblecup`. Le paquet à importer est `framework`. La version de ce guide est `v1.1.0-beta` (étiquette `beta-1.1`).
 
 Vous ne choisissez pas les couleurs, les marges ni les cadres. `DefaultStyle` les fixe. Vos objets ne portent que leurs données.
 
@@ -24,7 +24,7 @@ Dans un dossier vide, hors de ce dépôt :
 mkdir mon-tui
 cd mon-tui
 go mod init example.com/mon-tui
-go get github.com/palarchsys/gobubblecup@v0.4.0-beta.5
+go get github.com/palarchsys/gobubblecup@v1.1.0-beta
 ```
 
 `go mod init` crée `go.mod`. Le chemin `example.com/mon-tui` est le nom de votre module : remplacez-le par le vôtre.
@@ -32,7 +32,7 @@ go get github.com/palarchsys/gobubblecup@v0.4.0-beta.5
 `go get` télécharge le framework et écrit la dépendance. `go.mod` contient alors une ligne de cette forme :
 
 ```
-require github.com/palarchsys/gobubblecup v0.4.0-beta.5
+require github.com/palarchsys/gobubblecup v1.1.0-beta
 ```
 
 `go.sum` enregistre les sommes de contrôle. Conservez les deux fichiers.
@@ -71,7 +71,9 @@ func main() {
         framework.Row(framework.Category("Catalogue", teintes)),
         framework.Row(nom, ajouter),
     )
-    app := framework.New(framework.DefaultStyle(), grille)
+    style := framework.DefaultStyle()
+    style.Height = style.Width * 3 / 4
+    app := framework.New(style, grille)
     if _, err := tea.NewProgram(app).Run(); err != nil {
         fmt.Println(err)
         return
@@ -99,7 +101,7 @@ go build -o mon-tui .
 
 `go build -o mon-tui .` compile le paquet `main` du dossier courant et écrit le binaire `mon-tui` à cet endroit. Sans `-o`, le binaire prend le nom du dossier.
 
-`./mon-tui` lance l'interface. Quitter : `q` ou Ctrl+C, en dehors d'une zone de saisie. Après la fermeture, le programme affiche l'id choisi dans la liste et le texte du champ.
+`./mon-tui` lance l'interface et efface le terminal. À la sortie, l'écran précédent revient. Quitter : Ctrl+C. Les scripts encore en cours sont arrêtés. Après la fermeture, le programme affiche l'id choisi dans la liste et le texte du champ.
 
 Pour lancer sans écrire de binaire :
 
@@ -122,6 +124,8 @@ go build -o bonjour ./examples/bonjour
 ```
 
 `go test` vérifie le framework. `go build -o bonjour ./examples/bonjour` produit le même exemple que ci-dessus. Ce dépôt n'a pas de `package main` à la racine : la compilation d'une application se fait dans votre module, ou dans `examples/bonjour`.
+
+Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md).
 
 ### Autre système
 
@@ -149,8 +153,7 @@ Le focus parcourt les zones actives de la grille affichée, de haut-gauche vers 
 | Suppr | Efface le caractère sous le curseur. |
 | Inser | Bascule entre insertion et écrasement dans un champ. |
 | Ctrl+V | Colle le presse-papier dans le champ ou la zone éditable. |
-| `q` | Quitte, sauf dans un champ ou une zone de texte ouverte. Dans un champ, c'est la lettre q. |
-| Ctrl+C | Quitte toujours. |
+| Ctrl+C | Quitte, y compris dans un champ, et arrête les scripts en cours. |
 
 Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son item. Entrée confirme cet item. La liste se souvient de la ligne et la retrouve quand le focus revient. Au départ, c'est la première ligne. Cette ligne garde un fond `#37373d`, même quand la liste n'a plus le focus. Il n'y a pas de marqueur `›`. Un `✓` marque une ligne choisie.
 
@@ -171,9 +174,9 @@ Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. E
 | Contour pendant l'édition d'une zone de texte | `#9cdcfe` |
 | Fond de l'écran et des zones | `#1e1e1e` |
 
-Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. La hauteur d'une ligne est celle de son plus grand objet.
+Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. Sans `Height`, une ligne a la hauteur de son plus grand objet. Une fenêtre connue ne fait alors que réduire ce qui dépasse : le contenu court ne descend pas jusqu'en bas. Une `Height` positive est le format de l'écran, légende comprise. Les listes et les zones se partagent ce qui reste sous la légende, sans aller plus bas que ce format. Deux listes d'une même ligne se partagent cette hauteur. La liste n'en montre qu'une fenêtre : le titre reste, et le curseur aussi. La zone garde au moins son nombre de lignes, et prend la hauteur encore libre dans le format. Les démos posent `Height` aux trois quarts de la largeur par défaut.
 
-`framework.Color("#ffee00")` produit une couleur pour une pastille. Le thème des cadres ne se change pas objet par objet.
+`framework.Color("#ffee00")` produit une couleur pour une pastille. Un status de slot s'écrit tel quel : `pending`, `success`, `warning` ou `error`. Le thème choisit la teinte. Le thème des cadres ne se change pas objet par objet.
 
 ## Objets
 
@@ -202,7 +205,7 @@ framework.ListItem("casque", "Casque")
 framework.ListItem("casque", "Casque").WithDot("#ffee00")
 ```
 
-Deux arguments : l'id, puis le texte affiché. L'id est la valeur que vous relisez. `WithDot` pose une pastille ronde à droite. Une couleur vide ne dessine rien.
+Deux arguments : l'id, puis le texte affiché. L'id est la valeur que vous relisez. `WithDot` pose une pastille ronde à droite. La couleur est un `#rrggbb`, ou l'un des mots `pending`, `success`, `warning`, `error`. Une couleur vide, ou un autre mot, ne dessine rien. Une liste désactivée peint ces quatre mots en gris.
 
 Dans la ligne, la première colonne porte `✓` si l'item est choisi, sinon un espace. Elle est alignée sur le premier caractère du titre.
 
@@ -221,6 +224,8 @@ Le premier argument est le titre. Les suivants sont des `ListItem`, ou un seul `
 
 `Focus()` renvoie l'id de la ligne focalisée, ou `""` si la liste est vide. `SetFocus(id)` place le curseur sur cet id. Un id absent ne le déplace pas. `SetDot(id, couleur)` change la pastille. Sur une liste réactive qui mappe `dot`, cette écriture passe par la mémoire.
 
+`Bind(mémoire, clé)` écrit cet id focalisé, tout de suite, sous `data.value`. Haut, bas, `SetFocus`, `Reload`, et un id qui disparaît de la liste, réécrivent la même clé. Le même id n'est pas réécrit. Entrée ne publie pas : `Value()` reste le choix confirmé.
+
 `Reload` oublie le choix et revient à la première ligne. Sur une liste réactive, les entrées reviennent à celles présentes à la création de l'objet.
 
 ### Liste à choix multiple
@@ -232,7 +237,7 @@ pieces := framework.ListMult("Pièces",
 )
 ```
 
-Mêmes lignes qu'une liste unique, sans objet réactif. `Values()` renvoie les id cochés, dans l'ordre des lignes. Entrée coche ou décoche l'item focalisé. `Focus`, `SetFocus` et `SetDot` suivent la liste unique. `Reload` enlève les coches et restaure les lignes d'origine.
+Mêmes lignes qu'une liste unique, sans objet réactif. `Values()` renvoie les id cochés, dans l'ordre des lignes. Entrée coche ou décoche l'item focalisé. `Focus`, `SetFocus`, `SetDot` et `Bind` suivent la liste unique. Entrée ne change pas la clé de `Bind`. `Reload` enlève les coches et restaure les lignes d'origine.
 
 ### Champ d'une ligne
 
@@ -265,6 +270,12 @@ lecture := framework.TextArea("Sortie", "En attente", false, 4, true)
 ```
 
 Arguments : titre, texte initial, `true` pour écrire, nombre minimum de lignes visibles, puis le cadre. Une valeur de lignes inférieure à 1 devient 1. La barre `█` n'apparaît que si le texte dépasse. `Reload` restaure le texte initial. Coller insère le texte quand la zone est éditable, y compris les retours à la ligne.
+
+```go
+zone := framework.TextView(runtimeA.Memory, lien, "courant")
+```
+
+`TextView` est une zone en lecture, sans titre, avec un cadre et quatre lignes au minimum. À chaque dessin elle relit la clé dans `lien`, puis le `return` du slot de cet id. `return` est à la racine du slot, pas sous `data`. Un id vide, ou un slot absent, donne un texte vide. Changer d'id remet le défilement en haut. Si le même texte s'allonge et que le bas était déjà visible, le bas le reste. Une fenêtre remontée ne redescend pas toute seule. La zone n'écrit ni dans la mémoire du runtime, ni dans `lien`.
 
 ### Bouton
 
@@ -353,7 +364,11 @@ teintes := framework.ListUniq("Teintes", framework.ReactiveObject(
 ))
 ```
 
-La table nomme les champs lus dans chaque entrée. `id` et `label` sont obligatoires pour une ligne. `dot` est facultatif : il nomme la couleur de la pastille. Pour une mémoire ordinaire, ces noms sont des champs de `data`. Pour la mémoire d'un runtime, les champs directs sont `id`, `label`, `path`, `status` et `return`.
+La table nomme les champs lus dans chaque entrée. `id` et `label` sont obligatoires pour une ligne. `dot` est facultatif : il nomme la couleur de la pastille, un `#rrggbb` ou un status. Pour une mémoire ordinaire, ces noms sont des champs de `data`. Pour la mémoire d'un runtime, les champs directs sont `id`, `label`, `path`, `status` et `return`.
+
+```go
+map[string]string{"id": "id", "label": "label", "dot": "status"}
+```
 
 Chaque dessin relit la mémoire. `memo.Set` ajoute ou remplace une ligne. Le choix confirmé et la ligne focalisée restent si leur id existe encore. Sinon le focus revient à la première ligne.
 
@@ -384,7 +399,7 @@ executer := framework.Button("Exécuter", runtimeA.Start())
 
 `Start()` ne lance rien au moment où vous écrivez le bouton. Il renvoie l'action du bouton. Le lancement a lieu quand l'utilisateur valide Exécuter. Si le runtime tournait déjà, il s'arrête puis repart du début.
 
-`Bash` s'écrit seulement dans `Functions`. Un `Bash` ailleurs, ou un id ou un chemin vides, arrête le programme. Le chemin est relatif au dossier depuis lequel vous avez lancé le binaire. Le script reçoit ses arguments en lecture seule.
+`Bash` s'écrit seulement dans `Functions`. Un `Bash` ailleurs, ou un id ou un chemin vides, arrête le programme. Sans `Dir`, le chemin est relatif au dossier depuis lequel vous avez lancé le binaire. Avec `Dir`, il part de ce répertoire. Le script reçoit ses arguments en lecture seule. `BashEnv` ajoute le même script, plus une map de clés. Une map nulle ou vide équivaut à `Bash`. Une clé absente ne retire pas l'environnement hérité. Le même id remplace le job.
 
 Après le départ, le slot se lit ainsi :
 
@@ -393,11 +408,15 @@ runtimeA.Memory.Get("controle1").Get("status").String()
 runtimeA.Memory.Get("controle1").Get("return").String()
 ```
 
-`status` vaut `pending` pendant le script, puis `success`, `warning` ou `error`. `return` est la sortie brute. `Memory` est en lecture seule.
+`status` reste vide tant que le script n'a pas démarré. Il vaut `pending` le temps de son exécution, puis `success`, `warning` ou `error`. Un seul slot est `pending` : celui qui tourne. `return` grandit à chaque ligne complète, avant la fin du processus. La regex ne classe le slot qu'une fois, sur le texte entier. `Memory` est en lecture seule.
+
+Un slot `error` arrête la file, même si `Loop` vaut vrai. Les scripts pas encore lancés restent vides. `warning` et `success` laissent continuer.
 
 `Status()` du runtime n'est pas le verdict du script. C'est le cycle : `not_initialized`, `pending`, `running`, `terminated`.
 
-`Stop` annule l'exécution et remet ce cycle à `not_initialized`. `Pause` retient le runtime entre deux scripts. `Resume` le relâche. Un `Resume` sans pause ne fait rien.
+`Stop` annule l'exécution, remet ce cycle à `not_initialized` et vide `status` et `return` de chaque slot. `Cancel` annule le bash en cours et laisse le tableau lisible : le slot encore `pending` passe à `error` avec le texte déjà reçu, le cycle vaut `terminated`. Si rien ne tourne, `Cancel` revient tout de suite. Ctrl+C quitte l'écran et fait ce `Cancel` sur chaque runtime. `Pause` retient le runtime entre deux scripts. `Resume` le relâche. Un `Resume` sans pause ne fait rien.
+
+Un second `Start` pendant l'exécution appelle `Stop`, puis relance. Après la fin, `Start` relance sans vider les slots : chaque script remet son propre `return` à vide en démarrant.
 
 Avec `Loop: true`, `Timer` est obligatoire. `0` vaut 100 ms. À la fin de chaque tour, le runtime attend cette durée, puis recommence. `Stop` coupe l'attente. Sans boucle, `Timer` est ignoré.
 
@@ -406,6 +425,29 @@ Chaque `Runtime(...)` est indépendant. La regex par défaut est `(success|warni
 Un plantage dans le conteneur termine le cycle et ajoute le texte au journal `Log()`.
 
 Les scripts sont des fichiers à côté du binaire lancé, pas des fichiers compilés dans le programme. Pour les embarquer, copiez-les au déploiement, ou placez-les dans le dossier de lancement.
+
+```go
+lien := framework.Memory()
+rt := framework.Runtime(framework.RuntimeConfig{
+    Dir:         root,
+    Loop:        false,
+    StatusRegex: `(success|warning|error)`,
+    Functions: func(framework.Store) {
+        framework.Bash("un", "Un", "scripts/un.sh", nil)
+        framework.BashEnv("deux", "Deux", "scripts/deux.sh", nil,
+            map[string]string{"MODE": "strict"})
+    },
+})
+parent := framework.ListUniq("Groupes", groupes...)
+parent.Bind(lien, "parent")
+enfant := framework.ListUniq("Scripts", framework.ReactiveWatcher(...)) // filtre sur lien / parent
+enfant.Bind(lien, "courant")
+zone := framework.TextView(rt.Memory, lien, "courant")
+```
+
+Le watcher de l'enfant suit `lien` et `rt.Memory`. Il ne garde que les scripts du parent publié. `dot` reçoit le status. La zone lit le `return` du courant. Rien de tout cela n'est écrit à la main dans `Update`.
+
+Ctrl+C a déjà appelé `Cancel`. Si le programme quitte autrement, `rt.Cancel()` coupe encore les scripts en cours. Un second appel ne fait rien.
 
 ## Watcher
 
@@ -442,7 +484,7 @@ fenetre.Use(page, autre)
 app := framework.NewWindow(framework.DefaultStyle(), fenetre)
 ```
 
-Une seule grille est visible. Les boutons font le tour. Chaque grille garde son focus. La compilation reste `go build -o mon-tui .` : `NewWindow` remplace `New` dans le même `main`.
+Une seule grille est visible. Les boutons font le tour. À l'arrivée sur une grille, le focus se place sur son premier élément. La compilation reste `go build -o mon-tui .` : `NewWindow` remplace `New` dans le même `main`.
 
 ## Fichier
 
@@ -493,6 +535,6 @@ Le second argument de `Image` est la largeur en colonnes. La hauteur suit le rat
 
 - Une seule liste d'onglets par application.
 - Le thème est unique. `Disable` grise un objet sans le masquer.
-- `q` dans un champ saisit la lettre q. Une liste n'est pas une zone ouverte : `q` quitte. Dans une zone de texte ouverte, `q` ne quitte pas.
+- `q` dans un champ saisit la lettre q. `q` ne quitte pas. Ctrl+C quitte, y compris dans un champ, et arrête les runtimes en cours.
 - Les scripts bash ne sont pas compilés dans le binaire. Leur chemin part du dossier de lancement.
 - Un widget nul dans une grille ou une catégorie arrête le programme.

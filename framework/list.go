@@ -7,6 +7,14 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// focusLink publie l'id focalisé. La valeur se lit comme tout Set(clé, texte).
+type focusLink struct {
+	store Store
+	key   string
+	id    string
+	set   bool
+}
+
 // items est le tronc commun des deux listes : titre, lignes, curseur.
 type items struct {
 	gate
@@ -14,6 +22,8 @@ type items struct {
 	list   []Item
 	origin []Item
 	cursor int
+	top    int
+	link   *focusLink
 }
 
 func newItems(title string, list []Item) items {
@@ -69,13 +79,41 @@ func (it *items) setDot(id, color string) bool {
 	return false
 }
 
+// Bind publie l'id focalisé dans la mémoire, tout de suite, puis à chaque déplacement.
+// Entrée ne publie pas : Value et Choices restent le choix confirmé.
+// Une mémoire en lecture seule panique à l'écriture.
+func (it *items) Bind(store Store, key string) {
+	if it == nil || store == nil || key == "" {
+		panic("framework: lien de focus incomplet")
+	}
+	it.link = &focusLink{store: store, key: key}
+	it.publish()
+}
+
+// publish écrit l'id focalisé. Le même id ne change pas la génération.
+func (it *items) publish() {
+	if it == nil || it.link == nil {
+		return
+	}
+	id := it.focusID()
+	if it.link.set && it.link.id == id {
+		return
+	}
+	it.link.store.Set(it.link.key, id)
+	it.link.id = id
+	it.link.set = true
+}
+
 // handle déplace l'item ou confirme le choix. La liste n'est pas une zone à ouvrir.
+// Haut et bas publient le focus. Entrée ne publie pas.
 func (it *items) handle(key string, choose func()) tea.Cmd {
 	switch key {
 	case "up":
 		it.move(-1)
+		it.publish()
 	case "down":
 		it.move(1)
+		it.publish()
 	case "enter":
 		if it.cursor >= 0 && it.cursor < len(it.list) {
 			choose()
@@ -84,13 +122,74 @@ func (it *items) handle(key string, choose func()) tea.Cmd {
 	return nil
 }
 
+// minBox est le cadre le plus court : bordures, titre s'il existe, une ligne.
+func (it *items) minBox(s Style) int {
+	n := 2 + 2*s.padY() + 1
+	if it != nil && it.title != "" {
+		n++
+	}
+	return n
+}
+
+// itemSlots est le nombre de lignes d'items qui tiennent dans la hauteur.
+// Height à zéro : toutes les lignes.
+func (it *items) itemSlots(s Style) int {
+	n := len(it.list)
+	if s.Height <= 0 || n == 0 {
+		return n
+	}
+	inner := s.Height - 2 - 2*s.padY()
+	if it.title != "" {
+		inner--
+	}
+	if inner < 1 {
+		inner = 1
+	}
+	if inner > n {
+		return n
+	}
+	return inner
+}
+
+// reveal garde le curseur dans la fenêtre. Haut et bas n'ont bougé que le curseur.
+func (it *items) reveal(visible int) {
+	n := len(it.list)
+	if visible <= 0 || visible >= n {
+		it.top = 0
+		return
+	}
+	if it.cursor < it.top {
+		it.top = it.cursor
+	}
+	if it.cursor >= it.top+visible {
+		it.top = it.cursor - visible + 1
+	}
+	if it.top < 0 {
+		it.top = 0
+	}
+	if maxTop := n - visible; it.top > maxTop {
+		it.top = maxTop
+	}
+}
+
 func (it *items) body(s Style, armed bool, picked func(int) bool) string {
 	inner := s.content(s.Width)
-	lines := make([]string, 0, len(it.list)+1)
+	visible := it.itemSlots(s)
+	start, end := 0, len(it.list)
+	if s.Height > 0 && visible < len(it.list) {
+		it.reveal(visible)
+		start = it.top
+		end = start + visible
+		if end > len(it.list) {
+			end = len(it.list)
+		}
+	}
+	lines := make([]string, 0, end-start+1)
 	if it.title != "" {
 		lines = append(lines, s.line(it.title, s.Accent, true, inner))
 	}
-	for i, item := range it.list {
+	for i := start; i < end; i++ {
+		item := it.list[i]
 		remembered := i == it.cursor
 		lines = append(lines, s.itemLine(item.Label, remembered, armed && remembered, picked(i), item.Dot, inner))
 	}
@@ -175,10 +274,12 @@ func (l *listUniq) Reload() {
 		l.cursor = 0
 		l.list = nil
 		l.sync()
+		l.publish()
 		return
 	}
 	l.items.Reload()
 	l.picked = -1
+	l.publish()
 }
 
 func (l *listUniq) Value() string {
@@ -198,7 +299,9 @@ func (l *listUniq) Focus() string {
 // SetFocus place le curseur sur cet id. Un id absent ne le déplace pas.
 func (l *listUniq) SetFocus(id string) {
 	l.sync()
-	if l.setFocusID(id) {
+	moved := l.setFocusID(id)
+	l.publish()
+	if moved {
 		notify()
 	}
 }
@@ -208,6 +311,7 @@ func (l *listUniq) SetFocus(id string) {
 func (l *listUniq) SetDot(id, color string) {
 	if src, ok := l.src.(*reactiveObject[Item]); ok && src.writeDot(id, color) {
 		l.sync()
+		l.publish()
 		return
 	}
 	if l.setDot(id, color) {
@@ -229,6 +333,7 @@ func (l *listUniq) Choice() (Item, bool) {
 func (l *listUniq) Handle(inside bool, key string) (bool, tea.Cmd) {
 	_ = inside
 	l.sync()
+	l.publish()
 	return false, l.handle(key, func() { l.picked = l.cursor })
 }
 
@@ -238,6 +343,7 @@ func (l *listUniq) View(s Style, focused Widget, inside bool) string {
 		s = s.dimmed()
 	}
 	l.sync()
+	l.publish()
 	body := l.body(s, focused == l, func(i int) bool { return i == l.picked })
 	return s.box(body, focusedEdge(l, focused, false), s.Width, s.Height, "")
 }
@@ -258,6 +364,7 @@ func NewListMult(title string, list ...Item) *listMult {
 func (l *listMult) Reload() {
 	l.items.Reload()
 	l.picked = make([]bool, len(l.list))
+	l.publish()
 }
 
 func (l *listMult) Cursor() int { return l.cursor }
@@ -267,7 +374,9 @@ func (l *listMult) Focus() string { return l.focusID() }
 
 // SetFocus place le curseur sur cet id. Un id absent ne le déplace pas.
 func (l *listMult) SetFocus(id string) {
-	if l.setFocusID(id) {
+	moved := l.setFocusID(id)
+	l.publish()
+	if moved {
 		notify()
 	}
 }
@@ -302,22 +411,14 @@ func (l *listMult) Values() []string {
 
 func (l *listMult) Handle(inside bool, key string) (bool, tea.Cmd) {
 	_ = inside
-	switch key {
-	case "up":
-		l.move(-1)
-	case "down":
-		l.move(1)
-	case "enter":
-		if l.cursor >= 0 && l.cursor < len(l.list) {
-			if l.cursor >= len(l.picked) {
-				next := make([]bool, len(l.list))
-				copy(next, l.picked)
-				l.picked = next
-			}
-			l.picked[l.cursor] = !l.picked[l.cursor]
+	return false, l.handle(key, func() {
+		if l.cursor >= len(l.picked) {
+			next := make([]bool, len(l.list))
+			copy(next, l.picked)
+			l.picked = next
 		}
-	}
-	return false, nil
+		l.picked[l.cursor] = !l.picked[l.cursor]
+	})
 }
 
 func (l *listMult) View(s Style, focused Widget, inside bool) string {

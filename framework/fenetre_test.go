@@ -66,8 +66,17 @@ func TestFenetreEtSaisie(t *testing.T) {
 	}
 	app = press(t, app, key(tea.KeyRight))
 	app = press(t, app, key(tea.KeyEnter))
-	if w.Index() != 0 || app.grid != page {
+	if w.Index() != 0 || app.grid != page || app.grid.Focus() != nom || !app.grid.Inside() {
 		t.Fatalf("retour %d", w.Index())
+	}
+	app = press(t, app, key(tea.KeyRight))
+	app = press(t, app, key(tea.KeyRight))
+	if app.grid.Focus() != suivante {
+		t.Fatal("le bouton suivante, au second tour")
+	}
+	app = press(t, app, key(tea.KeyEnter))
+	if w.Index() != 1 || app.grid.Focus() != note || !app.grid.Inside() {
+		t.Fatal("l'arrivée repose le focus sur le premier élément")
 	}
 }
 

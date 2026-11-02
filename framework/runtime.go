@@ -1,28 +1,34 @@
 package framework
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
 // RuntimeConfig est l'appel nommé loop, args, functions.
 // StatusRegex est optionnelle. Par défaut la sortie doit contenir success, warning ou error.
+// Dir vide : le bash part du dossier de lancement. Sinon c'est son répertoire de travail.
 type RuntimeConfig struct {
 	Loop        bool
 	Timer       time.Duration
 	Args        Store
 	Functions   func(args Store)
 	StatusRegex string
+	Dir         string
 }
 
 // runtime exécute ses bash dans l'ordre.
 // Status() est le cycle : not_initialized, pending, running, terminated.
-// Le status d'un slot est vide avant Start, puis pending, puis success, warning ou error.
+// Le status d'un slot reste vide tant que son script n'a pas démarré,
+// puis pending pendant qu'il tourne, puis success, warning ou error.
 type runtime struct {
 	Memory   *memory
 	writable *memory
@@ -30,6 +36,7 @@ type runtime struct {
 	re       *regexp.Regexp
 	loop     bool
 	timer    time.Duration
+	dir      string
 	fn       func(args Store)
 	mu       sync.Mutex
 	phase    string
@@ -68,6 +75,7 @@ func Runtime(cfg RuntimeConfig) *runtime {
 		re:       compiled,
 		loop:     cfg.Loop,
 		timer:    timer,
+		dir:      cfg.Dir,
 		fn:       cfg.Functions,
 		phase:    "not_initialized",
 		ctx:      ctx,
@@ -76,7 +84,30 @@ func Runtime(cfg RuntimeConfig) *runtime {
 		done:     make(chan struct{}),
 		resume:   make(chan struct{}, 1),
 	}
+	rt.enlist()
 	return rt
+}
+
+// Les runtimes créés restent ici. Ctrl+C les arrête tous.
+var runtimeList struct {
+	mu    sync.Mutex
+	items []*runtime
+}
+
+func (r *runtime) enlist() {
+	runtimeList.mu.Lock()
+	runtimeList.items = append(runtimeList.items, r)
+	runtimeList.mu.Unlock()
+}
+
+// cancelRuntimes tue les bash encore en course et laisse les slots lisibles.
+func cancelRuntimes() {
+	runtimeList.mu.Lock()
+	items := append([]*runtime(nil), runtimeList.items...)
+	runtimeList.mu.Unlock()
+	for _, rt := range items {
+		rt.Cancel()
+	}
 }
 
 // Init enregistre les bash et remplit leur slot. Aucun script n'est lancé.
@@ -189,15 +220,44 @@ func (r *runtime) launch() {
 	r.running = true
 	r.mu.Unlock()
 	r.invoke()
-	for _, job := range r.snapshot() {
-		r.writable.setField(job.id, "status", "pending")
-		r.writable.setField(job.id, "return", "")
-	}
 	go r.run()
 }
 
+// Cancel annule le script en cours et laisse les slots en place.
+// Le slot encore pending passe à error, avec le return déjà reçu.
+// Si le runtime n'est pas en course, Cancel revient tout de suite.
+func (r *runtime) Cancel() {
+	r.mu.Lock()
+	running := r.running
+	r.mu.Unlock()
+	if !running {
+		return
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	r.once.Do(func() {
+		select {
+		case <-r.stop:
+		default:
+			close(r.stop)
+		}
+	})
+	<-r.done
+	r.mu.Lock()
+	r.running = false
+	r.paused = false
+	r.phase = "terminated"
+	r.mu.Unlock()
+}
+
 func (r *runtime) run() {
-	defer func() { close(r.done) }()
+	defer func() {
+		r.mu.Lock()
+		r.running = false
+		r.mu.Unlock()
+		close(r.done)
+	}()
 	r.guard(func() {
 		for {
 			if r.stopping() {
@@ -219,6 +279,13 @@ func (r *runtime) run() {
 				}
 				r.setPhase("running")
 				job.execute()
+				if r.stopping() {
+					return
+				}
+				if r.writable.Get(job.id).Get("status").String() == "error" {
+					r.setPhase("terminated")
+					return
+				}
 			}
 			if !loop || r.stopping() {
 				r.setPhase("terminated")
@@ -325,18 +392,40 @@ type bashJob struct {
 	label string
 	path  string
 	args  []string
+	env   map[string]string
 	rt    *runtime
 }
 
 func Bash(id, label, path string, args []string) {
+	trackBash(id, label, path, args, nil)
+}
+
+// BashEnv est un Bash dont les clés recouvrent l'environnement hérité.
+// Une map nulle ou vide équivaut à Bash. Le même id remplace le job.
+func BashEnv(id, label, path string, args []string, env map[string]string) {
+	trackBash(id, label, path, args, env)
+}
+
+func trackBash(id, label, path string, args []string, env map[string]string) {
 	rt := currentRuntime()
 	if rt == nil {
 		panic("framework: bash hors runtime")
 	}
-	rt.track(id, label, path, args)
+	rt.track(id, label, path, args, env)
 }
 
-func (r *runtime) track(id, label, path string, args []string) {
+func copyEnv(env map[string]string) map[string]string {
+	if len(env) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(env))
+	for key, value := range env {
+		out[key] = value
+	}
+	return out
+}
+
+func (r *runtime) track(id, label, path string, args []string, env map[string]string) {
 	if id == "" {
 		panic("framework: bash sans id")
 	}
@@ -350,6 +439,7 @@ func (r *runtime) track(id, label, path string, args []string) {
 			job.label = label
 			job.path = path
 			job.args = append([]string(nil), args...)
+			job.env = copyEnv(env)
 			r.writable.setField(id, "label", label)
 			r.writable.setField(id, "path", path)
 			return
@@ -360,6 +450,7 @@ func (r *runtime) track(id, label, path string, args []string) {
 		label: label,
 		path:  path,
 		args:  append([]string(nil), args...),
+		env:   copyEnv(env),
 		rt:    r,
 	})
 	r.writable.setField(id, "id", id)
@@ -391,17 +482,88 @@ func (b *bashJob) execute() {
 		return
 	}
 	b.rt.writable.setField(b.id, "status", "pending")
+	b.rt.writable.setField(b.id, "return", "")
 	argv := append([]string{b.path}, b.args...)
 	cmd := exec.CommandContext(b.rt.ctx, "bash", argv...)
-	out, err := cmd.CombinedOutput()
-	if b.rt.stopping() && len(out) == 0 {
+	if b.rt.dir != "" {
+		cmd.Dir = b.rt.dir
+	}
+	if len(b.env) > 0 {
+		cmd.Env = os.Environ()
+		for key, value := range b.env {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err == nil {
+			return nil
+		}
+		return cmd.Process.Kill()
+	}
+	cmd.WaitDelay = 200 * time.Millisecond
+	buf := &lineBuf{job: b}
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	if err := cmd.Start(); err != nil {
+		b.rt.writable.setField(b.id, "return", err.Error())
+		b.finish("error")
 		return
 	}
-	text := string(out)
-	b.rt.writable.setField(b.id, "return", text)
-	status := classify(b.rt.re, text, err)
+	err := cmd.Wait()
+	buf.flush()
+	if b.rt.stopping() || b.rt.ctx.Err() != nil {
+		b.finish("error")
+		return
+	}
+	text := b.rt.writable.Get(b.id).Get("return").String()
+	b.finish(classify(b.rt.re, text, err))
+}
+
+func (b *bashJob) finish(status string) {
 	b.rt.writable.setField(b.id, "status", status)
 	b.rt.addLog(b.id + ": " + status)
+}
+
+func (b *bashJob) appendReturn(text string) {
+	cur := b.rt.writable.Get(b.id).Get("return").String()
+	b.rt.writable.setField(b.id, "return", cur+text)
+}
+
+// lineBuf ajoute chaque ligne complète à return, dans l'ordre d'arrivée.
+type lineBuf struct {
+	mu  sync.Mutex
+	buf []byte
+	job *bashJob
+}
+
+func (w *lineBuf) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.buf = append(w.buf, p...)
+	for {
+		i := bytes.IndexByte(w.buf, '\n')
+		if i < 0 {
+			break
+		}
+		line := string(w.buf[:i+1])
+		w.buf = append([]byte(nil), w.buf[i+1:]...)
+		w.job.appendReturn(line)
+	}
+	return len(p), nil
+}
+
+func (w *lineBuf) flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.buf) == 0 {
+		return
+	}
+	w.job.appendReturn(string(w.buf))
+	w.buf = nil
 }
 
 func classify(re *regexp.Regexp, output string, err error) string {

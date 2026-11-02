@@ -86,8 +86,8 @@ func TestFocusMemoireEtPastille(t *testing.T) {
 	}
 
 	_, cmd := app.Update(textKey("q"))
-	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Fatal("q quitte quand une liste a le focus")
+	if cmd != nil {
+		t.Fatal("q ne quitte pas")
 	}
 }
 
@@ -107,6 +107,133 @@ func itemLineOf(view, label string) string {
 		}
 	}
 	return ""
+}
+
+func TestFocusPublie(t *testing.T) {
+	lien := Memory()
+	uniq := ListUniq("Teintes",
+		ListItem("cyan", "Cyan"),
+		ListItem("magenta", "Magenta"),
+		ListItem("jaune", "Jaune"),
+	)
+	uniq.Bind(lien, "parent")
+	if got := lien.Get("parent").Get("data").Get("value").String(); got != "cyan" {
+		t.Fatalf("départ %q", got)
+	}
+	gen := lien.Generation()
+	uniq.Handle(false, "up")
+	if lien.Generation() != gen {
+		t.Fatal("le même id ne doit pas réécrire")
+	}
+	uniq.Handle(false, "down")
+	if got := lien.Get("parent").Get("data").Get("value").String(); got != "magenta" {
+		t.Fatalf("bas %q", got)
+	}
+	if lien.Generation() == gen {
+		t.Fatal("le nouvel id n'a pas été publié")
+	}
+	gen = lien.Generation()
+	uniq.SetFocus("magenta")
+	if lien.Generation() != gen {
+		t.Fatal("republier le même id change la génération")
+	}
+	uniq.Handle(false, "enter")
+	if uniq.Value() != "magenta" {
+		t.Fatalf("valeur %q", uniq.Value())
+	}
+	gen = lien.Generation()
+	uniq.Handle(false, "down")
+	if uniq.Value() != "magenta" {
+		t.Fatal("Value a suivi le focus")
+	}
+	if lien.Get("parent").Get("data").Get("value").String() != "jaune" {
+		t.Fatal("le focus publié n'est pas le curseur")
+	}
+
+	src := Memory()
+	src.Set("keep", "oui")
+	watcher := ReactiveWatcher(WatcherConfig{
+		Watcher: []Store{src},
+		Functions: func(args []Store) any {
+			if args[0].Get("keep").Get("data").Get("value").String() == "oui" {
+				return []Item{ListItem("a", "A"), ListItem("b", "B")}
+			}
+			return []Item{ListItem("a", "A")}
+		},
+	})
+	live := ListUniq("L", watcher)
+	live.SetFocus("b")
+	live.Bind(lien, "courant")
+	if lien.Get("courant").Get("data").Get("value").String() != "b" {
+		t.Fatal("focus initial du réactif")
+	}
+	src.Set("keep", "non")
+	gen = lien.Generation()
+	if live.Focus() != "a" {
+		t.Fatalf("curseur %q", live.Focus())
+	}
+	if lien.Generation() != gen {
+		t.Fatal("Focus a publié")
+	}
+	live.View(DefaultStyle(), nil, false)
+	if lien.Get("courant").Get("data").Get("value").String() != "a" {
+		t.Fatal("le dessin n'a pas publié le nouvel id")
+	}
+
+	vide := ListUniq("Vide")
+	vide.Bind(lien, "rien")
+	if lien.Get("rien").Get("data").Get("value").String() != "" {
+		t.Fatal("liste vide")
+	}
+
+	pieces := ListMult("Pièces", ListItem("casque", "Casque"), ListItem("veste", "Veste"))
+	pieces.Bind(lien, "piece")
+	gen = lien.Generation()
+	pieces.Handle(false, "enter")
+	if strings.Join(pieces.Values(), ",") != "casque" {
+		t.Fatalf("coche %v", pieces.Values())
+	}
+	if lien.Generation() != gen || lien.Get("piece").Get("data").Get("value").String() != "casque" {
+		t.Fatal("Entrée a changé le focus")
+	}
+	pieces.Handle(false, "down")
+	if lien.Get("piece").Get("data").Get("value").String() != "veste" {
+		t.Fatal("ListMult ne publie pas le focus")
+	}
+
+	ro := lien.ReadOnly()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("mémoire en lecture seule")
+		}
+	}()
+	vide.Bind(ro, "bloque")
+}
+
+func TestPastilleMot(t *testing.T) {
+	erreur := ListUniq("T", ListItem("a", "A").WithDot("error"))
+	vue := erreur.View(DefaultStyle(), nil, false)
+	if !strings.Contains(plain(vue), "●") || !lineHas(vue, "A", "241;76;76") {
+		t.Fatal("le mot error ne dessine pas la pastille")
+	}
+	jaune := ListUniq("T", ListItem("a", "A").WithDot("#ffee00"))
+	if !lineHas(jaune.View(DefaultStyle(), nil, false), "A", "255;238;0") {
+		t.Fatal("l'hexadécimal a changé")
+	}
+	for _, dot := range []string{"nope", ""} {
+		item := ListUniq("T", ListItem("a", "A").WithDot(dot))
+		if strings.Contains(plain(item.View(DefaultStyle(), nil, false)), "●") {
+			t.Fatalf("%q dessine une pastille", dot)
+		}
+	}
+	erreur.Disable()
+	vue = erreur.View(DefaultStyle(), nil, false)
+	if !strings.Contains(plain(vue), "●") || !lineHas(vue, "A", "107;107;107") {
+		t.Fatal("la liste désactivée n'est pas grise")
+	}
+	if lineHas(vue, "A", "241;76;76") {
+		t.Fatal("le mot error reste rouge sur une liste désactivée")
+	}
 }
 
 func TestPastilleAlignee(t *testing.T) {

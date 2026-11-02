@@ -1,8 +1,10 @@
 package framework
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -358,6 +360,85 @@ func TestActions(t *testing.T) {
 	}
 }
 
+func TestFenetreDeListe(t *testing.T) {
+	liste := ListUniq("Nombres",
+		ListItem("un", "Un"),
+		ListItem("deux", "Deux"),
+		ListItem("trois", "Trois"),
+		ListItem("quatre", "Quatre"),
+		ListItem("cinq", "Cinq"),
+	)
+	plein := plain(liste.View(DefaultStyle(), liste, false))
+	for _, label := range []string{"Un", "Deux", "Trois", "Quatre", "Cinq"} {
+		if !strings.Contains(plein, label) {
+			t.Fatalf("sans hauteur, %s manque\n%s", label, plein)
+		}
+	}
+
+	cadre := DefaultStyle()
+	cadre.Height = 6
+	haut := plain(liste.View(cadre, liste, true))
+	if strings.Contains(haut, "Quatre") || strings.Contains(haut, "Cinq") {
+		t.Fatalf("la fenêtre montre trop\n%s", haut)
+	}
+	if !strings.Contains(haut, "Un") || !strings.Contains(haut, "Trois") {
+		t.Fatalf("trois lignes\n%s", haut)
+	}
+	for range 4 {
+		liste.Handle(false, "down")
+	}
+	liste.Handle(false, "enter")
+	bas := liste.View(cadre, liste, true)
+	texte := plain(bas)
+	if strings.Contains(texte, "Un") || !strings.Contains(texte, "Cinq") {
+		t.Fatalf("le dernier n'entre pas\n%s", texte)
+	}
+	if !lineHas(bas, "Cinq", "55;55;61") || !strings.Contains(itemLineOf(texte, "Cinq"), "✓") {
+		t.Fatal("le fond ou le ✓ ne suit pas le curseur")
+	}
+	if strings.Contains(itemLineOf(texte, "Trois"), "✓") || lineHas(bas, "Trois", "55;55;61") {
+		t.Fatal("le fond ou le ✓ reste sur un rang de la fenêtre")
+	}
+
+	args := []ListArg{ListItem("un", "Un")}
+	for i := 0; i < 20; i++ {
+		args = append(args, ListItem(fmt.Sprintf("n%d", i), fmt.Sprintf("N%d", i)))
+	}
+	longue := ListUniq("Longue", args...)
+	zone := TextArea("Notes", "ligne-de-zone", false, 4, true)
+	app := New(DefaultStyle(), NewGrid(Row(longue), Row(zone)))
+	next, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	app = next.(App)
+	vue := app.View().Content
+	if n := lineCount(vue); n > 24 {
+		t.Fatalf("la vue dépasse l'écran %d", n)
+	}
+	if !strings.Contains(plain(vue), "ligne-de-zone") || strings.Contains(plain(vue), "N14") {
+		t.Fatal("la zone ou la liste ne tient pas dans l'écran")
+	}
+
+	courte := ListUniq("Courte", ListItem("un", "Un"), ListItem("deux", "Deux"))
+	naturel := New(DefaultStyle(), NewGrid(Row(courte)))
+	next, _ = naturel.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	naturel = next.(App)
+	if n := lineCount(naturel.View().Content); n >= 40 || !strings.Contains(plain(naturel.View().Content), "Deux") {
+		t.Fatalf("le contenu court s'étend %d", n)
+	}
+
+	format := DefaultStyle()
+	format.Height = format.Width * 3 / 4
+	cadreApp := New(format, NewGrid(Row(longue)))
+	next, _ = cadreApp.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	cadreApp = next.(App)
+	vue = cadreApp.View().Content
+	if n := lineCount(vue); n != format.Height {
+		t.Fatalf("format %d, obtenu %d", format.Height, n)
+	}
+	if strings.Contains(plain(vue), "N14") || !strings.Contains(plain(vue), "Un") {
+		t.Fatal("le format ne borne pas la liste")
+	}
+}
+
 func TestRemplissage(t *testing.T) {
 	g := NewGrid(
 		Row(NewTitle("gobubblecup")),
@@ -673,14 +754,71 @@ func TestOngletDansLaLargeur(t *testing.T) {
 	}
 }
 
-func TestQuitter(t *testing.T) {
-	app := New(DefaultStyle(), NewGrid(Row(NewButton("Quitter", nil))))
-	_, cmd := app.Update(textKey("q"))
-	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Fatal("q")
+func TestEcranEfface(t *testing.T) {
+	app := New(DefaultStyle(), NewGrid(Row(NewButton("Ok", nil))))
+	if !app.View().AltScreen {
+		t.Fatal("le lancement ne prend pas l'écran alternatif")
 	}
-	_, cmd = app.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+}
+
+func TestQuitter(t *testing.T) {
+	champ := NewTextInput("Nom", InputText, 0, true)
+	app := New(DefaultStyle(), NewGrid(Row(champ)))
+	app = press(t, app, textKey("a"))
+	if !app.grid.Inside() {
+		t.Fatal("le champ est ouvert")
+	}
+	app = press(t, app, textKey("q"))
+	if champ.Value() != "aq" {
+		t.Fatalf("q saisit %q", champ.Value())
+	}
+
+	dir := t.TempDir()
+	writeScript(t, dir, "un.sh", "echo success\n")
+	writeScript(t, dir, "deux.sh", "echo deja\nsleep 30\n")
+	writeScript(t, dir, "trois.sh", "echo success\n")
+	makeRT := func() *runtime {
+		return Runtime(RuntimeConfig{
+			Dir: dir,
+			Functions: func(Store) {
+				Bash("un", "Un", "un.sh", nil)
+				Bash("deux", "Deux", "deux.sh", nil)
+				Bash("trois", "Trois", "trois.sh", nil)
+			},
+		})
+	}
+	un := makeRT()
+	deux := makeRT()
+	un.Start().Act()
+	deux.Start().Act()
+	waitReturn(t, un, "deux", "deja")
+	waitReturn(t, deux, "deux", "deja")
+
+	var cmd tea.Cmd
+	callWithin(t, 2*time.Second, func() {
+		_, cmd = app.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	})
+	if cmd == nil {
+		t.Fatal("ctrl+c")
+	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Fatal("ctrl+c")
+	}
+	for _, rt := range []*runtime{un, deux} {
+		if rt.Status() != "terminated" {
+			t.Fatalf("cycle %q", rt.Status())
+		}
+		if rt.Memory.Get("un").Get("status").String() != "success" {
+			t.Fatal("le premier a changé")
+		}
+		if rt.Memory.Get("deux").Get("status").String() != "error" {
+			t.Fatalf("second %q", rt.Memory.Get("deux").Get("status").String())
+		}
+		if !strings.Contains(rt.Memory.Get("deux").Get("return").String(), "deja") {
+			t.Fatal("le texte déjà reçu a disparu")
+		}
+		if rt.Memory.Get("trois").Get("status").String() != "" {
+			t.Fatal("le troisième n'est pas vide")
+		}
 	}
 }

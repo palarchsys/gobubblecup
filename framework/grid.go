@@ -338,7 +338,181 @@ func (g *grid) move(key string) {
 // de la ligne et la hauteur de la ligne au plus grand.
 // L'écart horizontal entre deux objets est une seule cellule, de la couleur des zones.
 // Les rangées se suivent sans ligne vide.
+// Sans budget, la hauteur reste celle du contenu.
 func (g *grid) render(s Style) []string {
+	return g.layout(s, 0, false)
+}
+
+// rowFit décrit une ligne pour le partage de la hauteur utile.
+// floor est le plancher : cadre d'une liste, hauteur naturelle d'une zone,
+// ou la hauteur d'un objet qui ne défile pas posé sur la même ligne.
+type rowFit struct {
+	flex  bool
+	text  bool
+	floor int
+}
+
+func (f *rowFit) note(w Widget, h int, s Style) {
+	switch v := w.(type) {
+	case *listUniq:
+		f.flex = true
+		if n := v.minBox(s); n > f.floor {
+			f.floor = n
+		}
+	case *listMult:
+		f.flex = true
+		if n := v.minBox(s); n > f.floor {
+			f.floor = n
+		}
+	case *textArea:
+		f.flex = true
+		f.text = true
+		if h > f.floor {
+			f.floor = h
+		}
+	default:
+		if h > f.floor {
+			f.floor = h
+		}
+	}
+}
+
+// fitHeights donne aux lignes fixes leur hauteur naturelle.
+// fill faux : le budget ne fait que réduire un contenu trop haut.
+// fill vrai : l'espace restant va aux listes et aux zones.
+// Une zone garde au moins sa hauteur naturelle tant que le budget le permet.
+// Le surplus va d'abord aux zones. La somme ne dépasse le budget que si
+// les objets fixes sont déjà plus hauts que l'écran.
+func fitHeights(natural []int, rows []rowFit, budget int, fill bool) []int {
+	out := append([]int(nil), natural...)
+	if budget <= 0 {
+		return out
+	}
+	fixed := 0
+	var flex []int
+	for i, row := range rows {
+		if row.flex {
+			flex = append(flex, i)
+			continue
+		}
+		fixed += natural[i]
+	}
+	if len(flex) == 0 {
+		return out
+	}
+	room := budget - fixed
+	if room <= 0 {
+		return out
+	}
+	var textRows, listRows []int
+	sumNatural := 0
+	for _, i := range flex {
+		sumNatural += natural[i]
+		if rows[i].text {
+			textRows = append(textRows, i)
+		}
+		if rows[i].floor > 0 && !rows[i].text {
+			listRows = append(listRows, i)
+		}
+		if rows[i].floor > 0 && rows[i].text && natural[i] > rows[i].floor {
+			listRows = append(listRows, i)
+		}
+	}
+	if sumNatural <= room {
+		if !fill {
+			return out
+		}
+		extra := room - sumNatural
+		give := textRows
+		if len(give) == 0 {
+			give = flex
+		}
+		shareExtra(out, give, extra)
+		return out
+	}
+	textNeed := 0
+	for _, i := range textRows {
+		if containsInt(listRows, i) {
+			continue
+		}
+		textNeed += natural[i]
+		out[i] = natural[i]
+	}
+	if textNeed >= room {
+		assignExact(out, flex, room)
+		return out
+	}
+	assignAtLeast(out, listRows, rows, room-textNeed)
+	return out
+}
+
+func containsInt(list []int, n int) bool {
+	for _, v := range list {
+		if v == n {
+			return true
+		}
+	}
+	return false
+}
+
+func shareExtra(out []int, rows []int, extra int) {
+	if len(rows) == 0 || extra <= 0 {
+		return
+	}
+	base := extra / len(rows)
+	rem := extra % len(rows)
+	for i, row := range rows {
+		out[row] += base
+		if i >= len(rows)-rem {
+			out[row]++
+		}
+	}
+}
+
+func assignExact(out []int, rows []int, total int) {
+	if len(rows) == 0 {
+		return
+	}
+	if total < 0 {
+		total = 0
+	}
+	base := total / len(rows)
+	rem := total % len(rows)
+	for i, row := range rows {
+		out[row] = base
+		if i >= len(rows)-rem {
+			out[row]++
+		}
+	}
+}
+
+func assignAtLeast(out []int, rows []int, fit []rowFit, total int) {
+	if len(rows) == 0 {
+		return
+	}
+	sum := 0
+	for _, row := range rows {
+		floor := fit[row].floor
+		if floor < 1 {
+			floor = 1
+		}
+		sum += floor
+	}
+	if sum > total {
+		assignExact(out, rows, total)
+		return
+	}
+	for _, row := range rows {
+		floor := fit[row].floor
+		if floor < 1 {
+			floor = 1
+		}
+		out[row] = floor
+	}
+	shareExtra(out, rows, total-sum)
+}
+
+func (g *grid) layout(s Style, budget int, fill bool) []string {
 	if g.focus != nil && !g.focus.Active() {
 		g.inside = false
 		g.focusFirst()
@@ -356,28 +530,30 @@ func (g *grid) render(s Style) []string {
 		return sum
 	}
 	measured := make([][]size, len(g.rows))
+	natural := make([]int, len(g.rows))
+	fits := make([]rowFit, len(g.rows))
 	iface := 0
 	for i, row := range g.rows {
 		measured[i] = make([]size, len(row))
 		for j, w := range row {
 			view := w.View(s, g.focus, g.inside)
 			measured[i][j] = size{w: lineWidth(view), h: lineCount(view)}
+			if measured[i][j].h > natural[i] {
+				natural[i] = measured[i][j].h
+			}
+			fits[i].note(w, measured[i][j].h, s)
 		}
 		if sum := span(measured[i]); sum > iface {
 			iface = sum
 		}
 	}
+	heights := fitHeights(natural, fits, budget, fill)
 	lines := make([]string, len(g.rows))
 	for i, row := range g.rows {
 		if len(row) == 0 {
 			continue
 		}
-		maxH := 0
-		for _, sz := range measured[i] {
-			if sz.h > maxH {
-				maxH = sz.h
-			}
-		}
+		maxH := heights[i]
 		slack := iface - span(measured[i])
 		pieces := make([]string, 0, len(row)*2)
 		for j, w := range row {

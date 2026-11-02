@@ -53,7 +53,7 @@ func (a App) sync() App {
 	return a
 }
 
-func (a App) Init() tea.Cmd { return tea.Batch(tea.ClearScreen, WaitRefresh()) }
+func (a App) Init() tea.Cmd { return WaitRefresh() }
 
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a = a.sync()
@@ -74,7 +74,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.sync(), nil
 	case tea.KeyPressMsg:
 		key := msg.String()
-		if key == "ctrl+c" || (key == "q" && !a.grid.Inside()) {
+		if key == "ctrl+c" {
+			cancelRuntimes()
 			return a.sync(), tea.Quit
 		}
 		if key == "ctrl+v" && a.grid.canPaste() {
@@ -105,14 +106,38 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a App) View() tea.View {
 	a = a.sync()
 	s := a.style
-	rows := a.grid.render(s)
+	// Height du style est le format de l'écran. Les objets gardent la leur à zéro.
+	format := s.Height
+	s.Height = 0
+	help := NewLegend().View(s, nil, false)
+	legend := lineCount(help)
+	budget, fill := 0, false
+	if format > 0 {
+		budget = format - legend
+		if budget < 1 {
+			budget = 1
+		}
+		fill = true
+	}
+	if a.height > 0 {
+		term := a.height - legend
+		if term < 1 {
+			term = 1
+		}
+		if budget == 0 || budget > term {
+			if format == 0 {
+				fill = false
+			}
+			budget = term
+		}
+	}
+	rows := a.grid.layout(s, budget, fill)
 	width := 0
 	for _, row := range rows {
 		if w := lineWidth(row); w > width {
 			width = w
 		}
 	}
-	help := NewLegend().View(s, nil, false)
 	if w := lipgloss.Width(help); w > width {
 		width = w
 	}
@@ -122,9 +147,18 @@ func (a App) View() tea.View {
 	}
 	blocks = append(blocks, widen(s, help, width))
 	body := inset(s, strings.Join(blocks, "\n"), s.margin())
-	body = fillScreen(s, body, a.width, a.height)
+	screenH := 0
+	if format > 0 {
+		screenH = format
+		if a.height > 0 && screenH > a.height {
+			screenH = a.height
+		}
+	}
+	body = fillScreen(s, body, a.width, screenH)
 	v := tea.NewView(body)
 	v.BackgroundColor = s.paper()
+	// L'écran alternatif efface le terminal au lancement. La sortie le rend.
+	v.AltScreen = true
 	return v
 }
 

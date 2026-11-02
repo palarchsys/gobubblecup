@@ -207,10 +207,33 @@ type textArea struct {
 	top       int
 	border    bool
 	overwrite bool
+	src       Store
+	focus     Store
+	focusKey  string
+	seenID    string
+	seenSet   bool
 }
 
 func TextArea(title, text string, editable bool, rows int, border bool) *textArea {
 	return NewTextArea(title, text, editable, rows, border)
+}
+
+// TextView est une zone en lecture. À chaque dessin elle relit le return
+// du slot dont l'id est publié dans focus, sous la clé.
+// Id vide ou nœud absent : texte vide. La zone n'écrit ni dans src ni dans focus.
+func TextView(src, focus Store, key string) *textArea {
+	return NewTextView(src, focus, key)
+}
+
+func NewTextView(src, focus Store, key string) *textArea {
+	if src == nil || focus == nil {
+		panic("framework: zone liée incomplète")
+	}
+	zone := NewTextArea("", "", false, 4, true)
+	zone.src = src
+	zone.focus = focus
+	zone.focusKey = key
+	return zone
 }
 
 func NewTextArea(title, text string, editable bool, rows int, border bool) *textArea {
@@ -337,10 +360,56 @@ func (t *textArea) visible(s Style) int {
 	return rows
 }
 
+// pull relit le slot lié. Un autre id remet le haut à zéro.
+// Le même texte, déjà en bas, reste en bas. Une fenêtre remontée ne bouge pas.
+func (t *textArea) pull(s Style) {
+	if t == nil || t.focus == nil {
+		return
+	}
+	id := t.focus.Get(t.focusKey).Get("data").Get("value").String()
+	text := ""
+	if id != "" && t.src != nil {
+		text = t.src.Get(id).Get("return").String()
+	}
+	visible := t.visible(s)
+	if visible < 1 {
+		visible = 1
+	}
+	if !t.seenSet || id != t.seenID {
+		t.lines = splitText(text)
+		t.line, t.col, t.top = 0, 0, 0
+		t.seenID = id
+		t.seenSet = true
+		t.clamp()
+		return
+	}
+	if text == t.Text() {
+		return
+	}
+	atBottom := t.top+visible >= len(t.lines)
+	t.lines = splitText(text)
+	t.clamp()
+	maxTop := len(t.lines) - visible
+	if maxTop < 0 {
+		maxTop = 0
+	}
+	if atBottom {
+		t.top = maxTop
+		return
+	}
+	if t.top > maxTop {
+		t.top = maxTop
+	}
+	if t.top < 0 {
+		t.top = 0
+	}
+}
+
 func (t *textArea) View(s Style, focused Widget, inside bool) string {
 	if t.Disabled() {
 		s = s.dimmed()
 	}
+	t.pull(s)
 	inner := s.Width
 	if t.border {
 		inner = s.content(s.Width)

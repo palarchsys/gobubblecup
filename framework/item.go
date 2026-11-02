@@ -1,7 +1,8 @@
 package framework
 
 // Item est une ligne de liste. ID est la valeur réactive, Label le texte affiché.
-// Dot est la couleur de la pastille, #rrggbb. Vide : pas de pastille.
+// Dot est la couleur de la pastille : #rrggbb, ou pending, success, warning, error.
+// Vide, ou un autre mot : pas de pastille.
 type Item struct {
 	ID    string
 	Label string

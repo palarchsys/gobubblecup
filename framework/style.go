@@ -9,7 +9,10 @@ import (
 
 // Style porte tous les paramètres visuels. Les objets n'en gardent aucun.
 // Width est la largeur de cadre d'un objet. Height à zéro suit le contenu.
-// La grille remplace les deux le temps d'un dessin pour remplir le vide.
+// Passée à New, une height positive est le format de l'écran, légende comprise.
+// Les objets sont alors mesurés à hauteur naturelle, et ce format est rempli
+// sans descendre jusqu'au bas du terminal. La grille remplace Width et Height
+// le temps d'un dessin pour remplir le vide.
 type Style struct {
 	Background color.Color
 	Surface    color.Color
@@ -30,6 +33,7 @@ type Style struct {
 	Thumb      string
 	fit        bool
 	pref       int
+	quiet      bool
 }
 
 type frame int
@@ -58,11 +62,13 @@ func focusedEdge(self, focused Widget, inside bool) frame {
 }
 
 // dimmed peint textes et titres avec le gris de repos.
+// quiet fait gagner ce gris sur un mot de pastille.
 func (s Style) dimmed() Style {
 	s.Text = s.Idle
 	s.Accent = s.Idle
 	s.Focus = s.Idle
 	s.Inside = s.Idle
+	s.quiet = true
 	return s
 }
 
@@ -220,19 +226,74 @@ func (s Style) corners() (tl, tr, bl, br, h, v string) {
 	return "┌", "┐", "└", "┘", "─", "│"
 }
 
+// Les quatre mots de pastille ne sont pas des champs de Style.
+// pending reprend le gris de repos. Les trois autres sont les teintes
+// Dark de Visual Studio pour un succès, un avertissement et une erreur.
+func statusInk(word string, idle color.Color) (color.Color, bool) {
+	switch word {
+	case "pending":
+		if idle != nil {
+			return idle, true
+		}
+		return Color("#6b6b6b"), true
+	case "success":
+		return Color("#89d185"), true
+	case "warning":
+		return Color("#cca700"), true
+	case "error":
+		return Color("#f14c4c"), true
+	default:
+		return nil, false
+	}
+}
+
+func hexColor(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for _, c := range s[1:] {
+		switch {
+		case c >= '0' && c <= '9', c >= 'a' && c <= 'f', c >= 'A' && c <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// dotInk reconnaît un mot de statut, puis un #rrggbb.
+// Vide ou inconnu : pas de pastille. Une liste désactivée peint le mot en gris.
+func (s Style) dotInk(dot string) (color.Color, bool) {
+	if dot == "" {
+		return nil, false
+	}
+	if ink, ok := statusInk(dot, s.Idle); ok {
+		if s.quiet {
+			return s.Idle, true
+		}
+		return ink, true
+	}
+	if hexColor(dot) {
+		return Color(dot), true
+	}
+	return nil, false
+}
+
 // itemLine dessine une ligne de liste.
 // remembered pose le fond #37373d, que la liste ait le focus ou non.
 // armed met le texte en gras : la liste a le focus de grille.
 // picked pose ✓ dans la première colonne.
-// dot est une couleur #rrggbb. Vide : pas de pastille. Sinon ● en dernière colonne.
+// dot est un #rrggbb ou pending, success, warning, error.
+// Vide ou inconnu : pas de pastille. Sinon ● en dernière colonne.
 func (s Style) itemLine(label string, remembered, armed, picked bool, dot string, width int) string {
 	symbol := " "
 	if picked {
 		symbol = s.Mark
 	}
 	prefix := symbol + " "
+	ink, show := s.dotInk(dot)
 	reserve := 0
-	if dot != "" {
+	if show {
 		reserve = 1
 	}
 	room := width - lipgloss.Width(prefix) - reserve
@@ -262,14 +323,16 @@ func (s Style) itemLine(label string, remembered, armed, picked bool, dot string
 		line += s.paintOn(s.Text, bg, false, strings.Repeat(" ", pad))
 	}
 	if reserve > 0 {
-		line += s.paintOn(Color(dot), bg, false, "●")
+		line += s.paintOn(ink, bg, false, "●")
 	}
 	return line
 }
 
 // box dessine un contour.
 // width et height comptent la bordure et le padding, pas la marge.
-// height à zéro prend la hauteur du contenu.
+// height à zéro prend la hauteur du contenu. Une hauteur positive
+// n'est pas une coupe : le corps reçu est dessiné en entier.
+// Une liste qui ne tient pas envoie seulement sa fenêtre.
 // Le padding horizontal entoure le texte. Les rangées se suivent sans ligne vide.
 // legend, s'il est posé, remplace le début du trait haut.
 func (s Style) box(body string, edge frame, width, height int, legend string) string {

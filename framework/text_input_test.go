@@ -31,6 +31,62 @@ func TestCurseurRecouvreLeCaractere(t *testing.T) {
 	}
 }
 
+func TestZoneLieeAuSlot(t *testing.T) {
+	src := Memory()
+	focus := Memory()
+	src.setField("un", "return", "alpha")
+	src.setField("deux", "return", "beta")
+	focus.Set("courant", "un")
+	zone := TextView(src, focus, "courant")
+	if !strings.Contains(plain(zone.View(DefaultStyle(), nil, false)), "alpha") {
+		t.Fatal("le return n'est pas lu")
+	}
+	focus.Set("courant", "deux")
+	zone.top = 3
+	vue := plain(zone.View(DefaultStyle(), nil, false))
+	if !strings.Contains(vue, "beta") || strings.Contains(vue, "alpha") || zone.Top() != 0 {
+		t.Fatalf("changement d'id top %d\n%s", zone.Top(), vue)
+	}
+
+	var lignes []string
+	for i := 0; i < 3; i++ {
+		lignes = append(lignes, "court")
+	}
+	src.setField("deux", "return", strings.Join(lignes, "\n"))
+	zone.View(DefaultStyle(), nil, false)
+	if zone.Top() != 0 {
+		t.Fatal("un texte court ne doit pas défiler")
+	}
+	for i := 0; i < 8; i++ {
+		lignes = append(lignes, "suite")
+	}
+	src.setField("deux", "return", strings.Join(lignes, "\n"))
+	zone.View(DefaultStyle(), nil, false)
+	if zone.Top() == 0 {
+		t.Fatal("le bas n'est plus visible")
+	}
+	haut := zone.Top()
+	zone.Handle(true, "up")
+	zone.Handle(true, "up")
+	remonté := zone.Top()
+	if remonté >= haut {
+		t.Fatalf("la fenêtre n'est pas remontée %d", remonté)
+	}
+	lignes = append(lignes, "encore")
+	src.setField("deux", "return", strings.Join(lignes, "\n"))
+	zone.View(DefaultStyle(), nil, false)
+	if zone.Top() != remonté {
+		t.Fatalf("le haut a bougé %d → %d", remonté, zone.Top())
+	}
+
+	edit := TextArea("Notes", "a\nb\nc\nd\ne", true, 3, true)
+	edit.top = 2
+	edit.SetText("seul")
+	if edit.Top() != 0 {
+		t.Fatal("SetText ne remet plus le haut à zéro")
+	}
+}
+
 func TestSupprEtInser(t *testing.T) {
 	nom := NewTextInput("Nom", InputText, 0, true)
 	nom.SetValue("abc")

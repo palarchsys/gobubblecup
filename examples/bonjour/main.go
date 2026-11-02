@@ -29,7 +29,9 @@ func main() {
 		framework.Row(framework.Category("Catalogue", teintes)),
 		framework.Row(nom, ajouter),
 	)
-	app := framework.New(framework.DefaultStyle(), grille)
+	style := framework.DefaultStyle()
+	style.Height = style.Width * 3 / 4
+	app := framework.New(style, grille)
 	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Println(err)
 		return

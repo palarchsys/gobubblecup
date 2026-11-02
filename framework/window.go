@@ -1,6 +1,7 @@
 package framework
 
 // window montre une grille à la fois. Suivante et Précédente font le tour.
+// À l'arrivée, le focus est le premier élément de cette grille.
 type window struct {
 	pages []*grid
 	index int
@@ -39,6 +40,7 @@ func (w *window) turn(delta int) {
 		next += n
 	}
 	w.index = next
+	w.pages[next].focusFirst()
 }
 
 // Next passe à la grille suivante. Le parcours reprend au début.
