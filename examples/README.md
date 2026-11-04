@@ -1,31 +1,31 @@
-# Démonstrations
+# Demonstrations
 
-Chaque dossier est un programme. Lancez-le depuis la racine du module, pour que les scripts et `notes.txt` soient trouvés :
+Each directory is a program. Run it from the module root, so the scripts and `notes.txt` are found:
 
 ```bash
-go run ./examples/bonjour
+go run ./examples/hello
 ```
 
-Ctrl+C quitte et arrête les scripts en cours. Dans un champ, `q` est une lettre. Le lancement efface le terminal. À la sortie, l'écran précédent revient.
+Ctrl+C quits and stops the scripts that are running. In a field, `q` is a letter. Launch clears the terminal. On exit, the previous screen comes back.
 
-Chaque démo fixe `Height` aux trois quarts de la largeur par défaut (`Width * 3 / 4`). L'écran garde ce format. Il ne descend pas jusqu'en bas du terminal.
+Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`). The screen keeps that format. It does not extend to the bottom of the terminal.
 
-| Dossier | Ce qu'il montre |
+| Directory | What it shows |
 | --- | --- |
-| `bonjour` | Mémoire, liste réactive, champ, bouton |
-| `listes` | Choix unique, choix multiple, pastilles, rechargement |
-| `saisie` | Texte, nombre, secret, zone éditable, zone en lecture |
-| `memoire` | `Set(Data)`, objet réactif, pastille écrite dans la mémoire |
-| `onglets` | Deux onglets fixes. Tab passe au suivant |
-| `vues` | Onglets relus dans une mémoire. L'onglet absent reste masqué |
-| `runtime` | Trois scripts enchaînés une fois. La liste suit leurs statuts |
-| `horloge` | Boucle, attente d'une seconde, pause et reprise |
-| `suivi` | Un watcher croise deux runtimes dans une seule liste |
-| `fenetres` | Deux grilles. Suivante et Précédente font le tour |
-| `fichier` | Lecture et écriture de `notes.txt`, résumées par un watcher |
-| `progression` | Barre sur des variables 0 ou 1. Une autre valeur est ignorée |
-| `echo` | La sortie d'un script arrive dans une zone |
-| `griser` | Une catégorie grise ses enfants encore actifs |
-| `image` | PNG compilé dans le binaire |
+| `hello` | Memory, reactive list, field, button |
+| `lists` | Single choice, multiple choice, dots, reload |
+| `input` | Text, number, secret, editable area, read-only area |
+| `memory` | `Set(Data)`, reactive object, dot written into memory |
+| `tabs` | Two fixed tabs. Tab moves to the next one |
+| `views` | Tabs reread from memory. A missing tab stays hidden |
+| `runtime` | Three scripts run once, in order. The list follows their statuses |
+| `clock` | Loop, one-second wait, pause and resume |
+| `watch` | A watcher joins two runtimes into one list |
+| `windows` | Two grids. Next and Previous wrap around |
+| `file` | Reading and writing `notes.txt`, summarized by a watcher |
+| `progress` | Bar over variables that are 0 or 1. Another value is ignored |
+| `echo` | A script's output arrives in an area |
+| `disable` | A category grays its children that are still active |
+| `image` | PNG compiled into the binary |
 
-Les scripts bash sont dans `examples/scripts/`. Le runtime les lance avec `bash`. Ils doivent afficher `success`, `warning` ou `error`.
+The bash scripts are in `examples/scripts/`. The runtime launches them with `bash`. They must print `success`, `warning`, or `error`.

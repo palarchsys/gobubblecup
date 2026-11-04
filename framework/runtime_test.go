@@ -124,14 +124,149 @@ func TestRuntimeBash(t *testing.T) {
 	if !strings.Contains(rt.Log(), "job: warning") {
 		t.Fatal(rt.Log())
 	}
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatal("mémoire publique")
-			}
-		}()
-		rt.Memory.Set("etat", "non")
-	}()
+}
+
+func TestChampDuRuntime(t *testing.T) {
+	dir := t.TempDir()
+	writeScript(t, dir, "job.sh", "echo ligne\nsleep 1\necho success\n")
+	rt := Runtime(RuntimeConfig{
+		Loop: false,
+		Dir:  dir,
+		Functions: func(args Store) {
+			Bash("install.snapd", "Snapd", "job.sh", nil)
+		},
+	})
+	rt.Init()
+	if len(rt.jobs) != 1 || len(rt.Memory.Entries()) != 1 {
+		t.Fatal("slot initial")
+	}
+
+	gen := rt.Memory.Generation()
+	rt.Memory.Set(Data{
+		"id":   "install.snapd",
+		"data": Data{"group": "install.system.title"},
+	})
+	if rt.Memory.Generation() == gen {
+		t.Fatal("génération")
+	}
+	rt.Memory.Set(Data{
+		"id":   "install.snapd",
+		"data": Data{"note": "deux"},
+	})
+	rt.Memory.Set("install.snapd", "note-courte")
+
+	fields := fieldsOf(t, rt.Memory, "install.snapd")
+	if fields["group"] != "install.system.title" || fields["note"] != "deux" || fields["status"] != "" {
+		t.Fatalf("entrée %v", fields)
+	}
+	if fields["value"] != "note-courte" || fields["id"] != "install.snapd" {
+		t.Fatalf("forme courte %v", fields)
+	}
+	slot := rt.Memory.Get("install.snapd")
+	if slot.Get("status").String() != "" || slot.Get("data").Get("status").String() != "" {
+		t.Fatal("status direct")
+	}
+	if slot.Get("data").Get("group").String() != "install.system.title" || slot.Get("data").Get("note").String() != "deux" {
+		t.Fatal("data")
+	}
+
+	gen = rt.Memory.Generation()
+	mustPanic(t, "framework: champ réservé", func() {
+		rt.Memory.Set(Data{
+			"id":   "install.snapd",
+			"data": Data{"status": "warning", "group": "autre"},
+		})
+	})
+	for _, key := range []string{"id", "label", "path", "status", "return"} {
+		mustPanic(t, "framework: champ réservé", func() {
+			rt.Memory.Set(key, "x")
+		})
+		mustPanic(t, "framework: champ réservé", func() {
+			rt.Memory.Set(Data{"id": "install.snapd", "data": Data{key: "x"}})
+		})
+	}
+	if rt.Memory.Generation() != gen {
+		t.Fatal("génération après refus")
+	}
+	slot = rt.Memory.Get("install.snapd")
+	if slot.Get("status").String() != "" || slot.Get("return").String() != "" {
+		t.Fatal("champ réservé écrit")
+	}
+	if slot.Get("data").Get("group").String() != "install.system.title" {
+		t.Fatal("group écrasé")
+	}
+	if slot.Get("id").String() != "install.snapd" || slot.Get("label").String() != "Snapd" || slot.Get("path").String() != "job.sh" {
+		t.Fatal("champs directs")
+	}
+
+	entries := len(rt.Memory.Entries())
+	jobs := len(rt.jobs)
+	mustPanic(t, "framework: slot inconnu", func() {
+		rt.Memory.Set(Data{"id": "absent", "data": Data{"group": "x"}})
+	})
+	mustPanic(t, "framework: slot inconnu", func() {
+		rt.Memory.Set("autre", "x")
+	})
+	if len(rt.Memory.Entries()) != entries || len(rt.jobs) != jobs {
+		t.Fatal("entrée fantôme")
+	}
+	if rt.Memory.Get("absent").Get("id").String() != "" || rt.Memory.Get("autre").Get("data").Get("value").String() != "" {
+		t.Fatal("fantôme lisible")
+	}
+	if rt.Memory.Generation() != gen {
+		t.Fatal("génération après id absent")
+	}
+
+	ro := rt.Memory.ReadOnly()
+	mustPanic(t, "framework: mémoire en lecture seule", func() {
+		ro.Set(Data{"id": "install.snapd", "data": Data{"group": "z"}})
+	})
+	if rt.Memory.Get("install.snapd").Get("data").Get("group").String() != "install.system.title" {
+		t.Fatal("vue lecture seule")
+	}
+
+	rt.Start().Act()
+	waitReturn(t, rt, "install.snapd", "ligne")
+	if rt.Memory.Get("install.snapd").Get("data").Get("group").String() != "install.system.title" {
+		t.Fatal("group pendant la ligne")
+	}
+	waitStatus(t, rt, "install.snapd", "success")
+	ret := rt.Memory.Get("install.snapd").Get("return").String()
+	if !strings.Contains(ret, "ligne") || !strings.Contains(ret, "success") {
+		t.Fatal(ret)
+	}
+	fields = fieldsOf(t, rt.Memory, "install.snapd")
+	if fields["group"] != "install.system.title" || fields["status"] != "success" {
+		t.Fatalf("après script %v", fields)
+	}
+	if rt.Memory.Get("install.snapd").Get("status").String() != "success" {
+		t.Fatal("status direct après script")
+	}
+	if rt.Memory.Get("install.snapd").Get("data").Get("status").String() != "" {
+		t.Fatal("status sous data")
+	}
+
+	items := ReactiveObject(ListItem, rt.Memory, map[string]string{"id": "id", "label": "label"})
+	mustPanic(t, "framework: mémoire de runtime", func() {
+		items.Reload()
+	})
+	if rt.Memory.Get("install.snapd").Get("status").String() != "success" || rt.Memory.Get("install.snapd").Get("return").String() != ret {
+		t.Fatal("reload a remplacé la racine")
+	}
+	if rt.Memory.Get("install.snapd").Get("data").Get("group").String() != "install.system.title" {
+		t.Fatal("group après reload")
+	}
+
+	rt.Stop()
+	if rt.Memory.Get("install.snapd").Get("status").String() != "" || rt.Memory.Get("install.snapd").Get("return").String() != "" {
+		t.Fatal("stop")
+	}
+	if rt.Memory.Get("install.snapd").Get("data").Get("group").String() != "install.system.title" {
+		t.Fatal("group après stop")
+	}
+	if rt.Memory.Get("install.snapd").Get("data").Get("note").String() != "deux" {
+		t.Fatal("note après stop")
+	}
 }
 
 func TestReactiveWatcher(t *testing.T) {
@@ -420,6 +555,32 @@ func TestCancelEtStop(t *testing.T) {
 			t.Fatalf("slot %s non vide", id)
 		}
 	}
+}
+
+func mustPanic(t *testing.T, msg string, fn func()) {
+	t.Helper()
+	defer func() {
+		got := recover()
+		if got == nil {
+			t.Fatalf("panic attendu %q", msg)
+		}
+		text, ok := got.(string)
+		if !ok || text != msg {
+			t.Fatalf("panic %v", got)
+		}
+	}()
+	fn()
+}
+
+func fieldsOf(t *testing.T, memo *memory, id string) map[string]string {
+	t.Helper()
+	for _, entry := range memo.Entries() {
+		if entry.ID == id {
+			return entry.Fields
+		}
+	}
+	t.Fatalf("entrée %s absente", id)
+	return nil
 }
 
 func writeScript(t *testing.T, dir, name, body string) {

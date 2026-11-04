@@ -39,7 +39,7 @@ require github.com/palarchsys/gobubblecup v1.1.0-beta
 
 ## Le programme
 
-Enregistrez ce fichier sous `main.go`, à côté de `go.mod`. Le dépôt reprend le même programme dans `examples/bonjour/main.go`.
+Enregistrez ce fichier sous `main.go`, à côté de `go.mod`. Le dépôt reprend le même programme dans `examples/hello/main.go`.
 
 ```go
 package main
@@ -56,30 +56,30 @@ func main() {
     memo.Set("1", "Cyan")
     memo.Set("2", "Magenta")
 
-    teintes := framework.ListUniq("Teintes", framework.ReactiveObject(
+    colors := framework.ListUniq("Colors", framework.ReactiveObject(
         framework.ListItem,
         memo,
         map[string]string{"id": "id", "label": "value"},
     ))
-    nom := framework.TextInput("Nom", framework.InputText, 24, true)
-    ajouter := framework.Button("Ajouter", framework.Call{Run: func() {
-        memo.Set("3", "Jaune")
+    name := framework.TextInput("Name", framework.InputText, 24, true)
+    add := framework.Button("Add", framework.Call{Run: func() {
+        memo.Set("3", "Yellow")
     }})
 
-    grille := framework.Grid(
+    grid := framework.Grid(
         framework.Row(framework.Title("gobubblecup")),
-        framework.Row(framework.Category("Catalogue", teintes)),
-        framework.Row(nom, ajouter),
+        framework.Row(framework.Category("Catalog", colors)),
+        framework.Row(name, add),
     )
     style := framework.DefaultStyle()
     style.Height = style.Width * 3 / 4
-    app := framework.New(style, grille)
+    app := framework.New(style, grid)
     if _, err := tea.NewProgram(app).Run(); err != nil {
         fmt.Println(err)
         return
     }
-    fmt.Println("choix:", teintes.Value())
-    fmt.Println("nom:", nom.Value())
+    fmt.Println("choice:", colors.Value())
+    fmt.Println("name:", name.Value())
 }
 ```
 
@@ -119,11 +119,11 @@ Si vous avez cloné `github.com/palarchsys/gobubblecup` :
 git clone https://github.com/palarchsys/gobubblecup.git
 cd gobubblecup
 go test -count=1 ./framework
-go build -o bonjour ./examples/bonjour
-./bonjour
+go build -o hello ./examples/hello
+./hello
 ```
 
-`go test` vérifie le framework. `go build -o bonjour ./examples/bonjour` produit le même exemple que ci-dessus. Ce dépôt n'a pas de `package main` à la racine : la compilation d'une application se fait dans votre module, ou dans `examples/bonjour`.
+`go test` vérifie le framework. `go build -o hello ./examples/hello` produit le même exemple que ci-dessus. Ce dépôt n'a pas de `package main` à la racine : la compilation d'une application se fait dans votre module, ou dans `examples/hello`.
 
 Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md).
 
@@ -408,7 +408,9 @@ runtimeA.Memory.Get("controle1").Get("status").String()
 runtimeA.Memory.Get("controle1").Get("return").String()
 ```
 
-`status` reste vide tant que le script n'a pas démarré. Il vaut `pending` le temps de son exécution, puis `success`, `warning` ou `error`. Un seul slot est `pending` : celui qui tourne. `return` grandit à chaque ligne complète, avant la fin du processus. La regex ne classe le slot qu'une fois, sur le texte entier. `Memory` est en lecture seule.
+`status` reste vide tant que le script n'a pas démarré. Il vaut `pending` le temps de son exécution, puis `success`, `warning` ou `error`. Un seul slot est `pending` : celui qui tourne. `return` grandit à chaque ligne complète, avant la fin du processus. La regex ne classe le slot qu'une fois, sur le texte entier.
+
+Après `Init`, `Memory.Set` ajoute sur un slot déjà créé un champ dont le nom n'est pas `id`, `label`, `path`, `status` ou `return`. Ces cinq noms arrêtent le programme. Un id qui n'est pas encore un slot l'arrête aussi. Le champ se lit dans `data` et reste pendant le script.
 
 Un slot `error` arrête la file, même si `Loop` vaut vrai. Les scripts pas encore lancés restent vides. `warning` et `success` laissent continuer.
 

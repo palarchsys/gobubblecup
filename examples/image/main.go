@@ -1,6 +1,6 @@
-// Image compilée dans le binaire. Le lancement ne relit pas le fichier.
+// Image compiled into the binary. Launch does not read the file again.
 //
-// Lancer depuis la racine du module : go run ./examples/image
+// From the module root: go run ./examples/image
 package main
 
 import (
@@ -19,13 +19,13 @@ func init() {
 }
 
 func main() {
-	grille := framework.Grid(
+	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(framework.Image("logo.png", 48)),
 	)
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
-	app := framework.New(style, grille)
+	app := framework.New(style, grid)
 	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Println(err)
 	}

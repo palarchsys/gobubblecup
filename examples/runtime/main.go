@@ -1,7 +1,7 @@
-// Runtime lancé une fois. Trois scripts s'enchaînent. La liste relit leurs slots.
+// Runtime run once. Three scripts run in order. The list rereads their slots.
 //
-// Lancer depuis la racine du module : go run ./examples/runtime
-// Les chemins des scripts partent de ce dossier.
+// From the module root: go run ./examples/runtime
+// Script paths are relative to this directory.
 package main
 
 import (
@@ -12,59 +12,59 @@ import (
 )
 
 func main() {
-	nom := framework.TextInput("Nom", framework.InputText, 24, true)
-	controles := framework.Runtime(framework.RuntimeConfig{
+	name := framework.TextInput("Name", framework.InputText, 24, true)
+	checks := framework.Runtime(framework.RuntimeConfig{
 		Functions: func(args framework.Store) {
-			framework.Bash("un", "Contrôle 1", "examples/scripts/controle1.sh", []string{nom.Value()})
-			framework.Bash("deux", "Contrôle 2", "examples/scripts/controle2.sh", nil)
-			framework.Bash("trois", "Contrôle 3", "examples/scripts/controle3.sh", nil)
+			framework.Bash("one", "Check 1", "examples/scripts/check1.sh", []string{name.Value()})
+			framework.Bash("two", "Check 2", "examples/scripts/check2.sh", nil)
+			framework.Bash("three", "Check 3", "examples/scripts/check3.sh", nil)
 		},
 	})
-	// Init pose id, label et path. Aucun script ne part.
-	controles.Init()
+	// Init writes id, label, and path. No script starts.
+	checks.Init()
 
-	// La fonction écrit dans une mémoire neuve. Elle ne réécrit pas le runtime.
-	suivi := framework.ReactiveWatcher(framework.WatcherConfig{
-		Watcher: []framework.Store{controles.Memory},
+	// The function writes into a fresh memory. It does not write the runtime back.
+	watch := framework.ReactiveWatcher(framework.WatcherConfig{
+		Watcher: []framework.Store{checks.Memory},
 		Functions: func(args []framework.Store) any {
-			forme := framework.Memory()
-			for _, id := range []string{"un", "deux", "trois"} {
-				forme.Set(id, ligneRuntime(args[0], id))
+			rows := framework.Memory()
+			for _, id := range []string{"one", "two", "three"} {
+				rows.Set(id, runtimeLine(args[0], id))
 			}
 			return framework.ReactiveObject(
 				framework.ListItem,
-				forme,
+				rows,
 				map[string]string{"id": "id", "label": "value"},
 			)
 		},
 	})
-	liste := framework.ListUniq("Scripts", suivi)
+	list := framework.ListUniq("Scripts", watch)
 
-	grille := framework.Grid(
+	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
-		framework.Row(nom),
-		framework.Row(liste),
+		framework.Row(name),
+		framework.Row(list),
 		framework.Row(
-			framework.Button("Lancer", controles.Start()),
-			framework.Button("Stop", framework.Call{Run: controles.Stop}),
+			framework.Button("Start", checks.Start()),
+			framework.Button("Stop", framework.Call{Run: checks.Stop}),
 		),
 	)
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
-	app := framework.New(style, grille)
+	app := framework.New(style, grid)
 	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("cycle:", controles.Status())
-	fmt.Println(controles.Log())
+	fmt.Println("cycle:", checks.Status())
+	fmt.Println(checks.Log())
 }
 
-func ligneRuntime(memo framework.Store, id string) string {
+func runtimeLine(memo framework.Store, id string) string {
 	label := memo.Get(id).Get("label").String()
 	status := memo.Get(id).Get("status").String()
 	if status == "" {
-		status = "en attente"
+		status = "waiting"
 	}
 	return label + " · " + status
 }

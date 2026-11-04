@@ -1,6 +1,6 @@
-// Exec écrit la sortie du script dans la zone, sans quitter l'écran.
+// Exec writes the script output into the area, without leaving the screen.
 //
-// Lancer depuis la racine du module : go run ./examples/echo
+// From the module root: go run ./examples/echo
 package main
 
 import (
@@ -12,37 +12,37 @@ import (
 
 func main() {
 	message := framework.TextInput("Message", framework.InputText, 40, true)
-	sortie := framework.TextArea("Sortie", "En attente", false, 6, true)
-	// L'action lit le champ au clic, puis laisse Exec rendre la sortie à l'écran.
-	echo := framework.Button("Echo", echoMaintenant{lire: message.Value, vers: sortie})
-	recharger := framework.Button("Recharger", framework.Reload{Target: sortie})
+	output := framework.TextArea("Output", "Waiting", false, 6, true)
+	// The action reads the field on click, then lets Exec draw the output.
+	echo := framework.Button("Echo", echoNow{read: message.Value, into: output})
+	reload := framework.Button("Reload", framework.Reload{Target: output})
 
-	grille := framework.Grid(
+	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(message),
-		framework.Row(sortie),
-		framework.Row(echo, recharger),
+		framework.Row(output),
+		framework.Row(echo, reload),
 	)
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
-	app := framework.New(style, grille)
+	app := framework.New(style, grid)
 	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("sortie:", sortie.Text())
+	fmt.Println("output:", output.Text())
 }
 
-// echoMaintenant relit le champ quand le bouton est pressé.
-type echoMaintenant struct {
-	lire func() string
-	vers framework.Sink
+// echoNow rereads the field when the button is pressed.
+type echoNow struct {
+	read func() string
+	into framework.Sink
 }
 
-func (e echoMaintenant) Act() tea.Cmd {
+func (e echoNow) Act() tea.Cmd {
 	return framework.Exec{
 		Script: "bash",
-		Args:   []string{"examples/scripts/echo.sh", e.lire()},
-		Into:   e.vers,
+		Args:   []string{"examples/scripts/echo.sh", e.read()},
+		Into:   e.into,
 	}.Act()
 }

@@ -69,7 +69,7 @@ func Runtime(cfg RuntimeConfig) *runtime {
 	args := concreteMemory(cfg.Args)
 	ctx, cancel := context.WithCancel(context.Background())
 	rt := &runtime{
-		Memory:   store.ReadOnly(),
+		Memory:   &memory{head: store.head, runtime: true},
 		writable: store,
 		argsMem:  args,
 		re:       compiled,

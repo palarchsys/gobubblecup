@@ -14,10 +14,13 @@ type Data map[string]any
 // Set("etat", "en attente") range data.id et data.value.
 // Set(Data{"id": "1", "data": Data{"id": "cyan", "value": "Cyan"}}) range ces champs.
 // Get se chaîne : Get("1").Get("data").Get("value").String().
-// head est partagé avec la vue lecture seule : le compteur gen suit les écritures.
+// head est partagé avec la vue lecture seule et la mémoire publiée d'un runtime.
+// Le compteur gen suit les écritures.
+// runtime : Set refuse les cinq champs du runtime et un id sans slot. restore panique.
 type memory struct {
 	head     *memHead
 	readonly bool
+	runtime  bool
 }
 
 type memHead struct {
@@ -99,7 +102,7 @@ func (m *memory) ReadOnly() *memory {
 	if m == nil || m.readonly {
 		return m
 	}
-	return &memory{head: m.head, readonly: true}
+	return &memory{head: m.head, readonly: true, runtime: m.runtime}
 }
 
 func (m *memory) Generation() uint64 {
@@ -120,7 +123,7 @@ func (m *memory) Set(a any, rest ...any) {
 		if !ok1 || !ok2 || id == "" {
 			panic("framework: mémoire Set")
 		}
-		m.putData(id, map[string]string{"id": id, "value": value})
+		m.mergeData(id, map[string]string{"id": id, "value": value}, false)
 	case len(rest) == 0:
 		raw, ok := a.(Data)
 		if !ok {
@@ -148,8 +151,28 @@ func (m *memory) Set(a any, rest ...any) {
 }
 
 func (m *memory) putData(id string, fields map[string]string) {
+	m.mergeData(id, fields, true)
+}
+
+// mergeData fusionne les clés sous data. Il ne retire rien.
+// keys faux : forme courte. Seul l'id est un nom réservé, pas la clé data id.
+func (m *memory) mergeData(id string, fields map[string]string, keys bool) {
 	m.head.mu.Lock()
 	defer m.head.mu.Unlock()
+	if m.runtime {
+		if keys {
+			for key := range fields {
+				if reservedName(key) {
+					panic("framework: champ réservé")
+				}
+			}
+		} else if reservedName(id) {
+			panic("framework: champ réservé")
+		}
+		if m.head.root.kids[id] == nil {
+			panic("framework: slot inconnu")
+		}
+	}
 	data := m.head.root.childOrCreate(id).childOrCreate("data")
 	for key, value := range fields {
 		leaf := data.childOrCreate(key)
@@ -157,6 +180,15 @@ func (m *memory) putData(id string, fields map[string]string) {
 		leaf.has = true
 	}
 	m.head.gen++
+}
+
+func reservedName(key string) bool {
+	switch key {
+	case "id", "label", "path", "status", "return":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *memory) setField(id, field, value string) {
@@ -254,7 +286,11 @@ func (m *memory) List(key string) []*memory {
 
 // restore remplace les entrées data par la photo donnée.
 // Les ajouts faits après cette photo disparaissent.
+// La mémoire publiée d'un runtime refuse : la racine ne bouge pas.
 func (m *memory) restore(entries []memEntry) {
+	if m != nil && m.runtime {
+		panic("framework: mémoire de runtime")
+	}
 	m.mustWrite()
 	root := newBox()
 	for _, entry := range entries {
