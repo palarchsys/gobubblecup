@@ -34,7 +34,7 @@ type ExecDone struct {
 func (e Exec) Act() tea.Cmd {
 	script := strings.TrimSpace(e.Script)
 	if script == "" {
-		return nil
+		panic("framework: exec incomplet")
 	}
 	args := append([]string(nil), e.Args...)
 	if e.Into == nil {
@@ -53,9 +53,10 @@ func (e Exec) Act() tea.Cmd {
 type Reload struct{ Target Reloader }
 
 func (r Reload) Act() tea.Cmd {
-	if r.Target != nil {
-		r.Target.Reload()
+	if r.Target == nil {
+		panic("framework: rechargement incomplet")
 	}
+	r.Target.Reload()
 	return nil
 }
 
@@ -63,20 +64,21 @@ func (r Reload) Act() tea.Cmd {
 type Call struct{ Run func() }
 
 func (c Call) Act() tea.Cmd {
-	if c.Run != nil {
-		c.Run()
+	if c.Run == nil {
+		panic("framework: appel incomplet")
 	}
+	c.Run()
 	return nil
 }
 
-// ReadFile charge un fichier dans la variable, sous l'id "file".
+// ReadFile charge un fichier dans la mémoire, sous l'id "file".
 type ReadFile struct {
-	Path string
-	Into Store
+	Path   string
+	Memory Store
 }
 
 func (r ReadFile) Act() tea.Cmd {
-	if strings.TrimSpace(r.Path) == "" || r.Into == nil {
+	if strings.TrimSpace(r.Path) == "" || r.Memory == nil {
 		panic("framework: lecture de fichier incomplète")
 	}
 	text, err := os.ReadFile(r.Path)
@@ -84,23 +86,23 @@ func (r ReadFile) Act() tea.Cmd {
 	if err != nil {
 		value = err.Error()
 	}
-	r.Into.Set("file", value)
+	r.Memory.Set("file", value)
 	return nil
 }
 
 // WriteFile enregistre la variable "file" dans un fichier.
 type WriteFile struct {
-	Path string
-	From Store
+	Path   string
+	Memory Store
 }
 
 func (w WriteFile) Act() tea.Cmd {
-	if strings.TrimSpace(w.Path) == "" || w.From == nil {
+	if strings.TrimSpace(w.Path) == "" || w.Memory == nil {
 		panic("framework: écriture de fichier incomplète")
 	}
-	value := w.From.Get("file").Get("data").Get("value").String()
+	value := w.Memory.Get("file").Get("data").Get("value").String()
 	if err := os.WriteFile(w.Path, []byte(value), 0o644); err != nil {
-		w.From.Set("file", err.Error())
+		w.Memory.Set("file", err.Error())
 	}
 	return nil
 }

@@ -41,7 +41,7 @@ func TestFocusMemoireEtPastille(t *testing.T) {
 	app = press(t, app, key(tea.KeyRight))
 	app = press(t, app, key(tea.KeyLeft))
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != uniq || uniq.Focus() != "Jaune" {
+	if app.grid.Focused() != uniq || uniq.Focus() != "Jaune" {
 		t.Fatalf("mémoire %q", uniq.Focus())
 	}
 
@@ -234,6 +234,29 @@ func TestPastilleMot(t *testing.T) {
 	if lineHas(vue, "A", "241;76;76") {
 		t.Fatal("le mot error reste rouge sur une liste désactivée")
 	}
+}
+
+func TestSourcesExclusives(t *testing.T) {
+	memo := Memory()
+	memo.Set("1", "Un")
+	src := ReactiveObject(ListItem, memo, map[string]string{"id": "id", "label": "value"})
+	autre := ReactiveWatcher(WatcherConfig{
+		Watcher:   []Store{memo},
+		Functions: func(args []Store) any { return []Item{ListItem("a", "A")} },
+	})
+	mustPanic(t, "framework: items fixes et réactifs", func() {
+		ListUniq("T", ListItem("a", "A"), src)
+	})
+	mustPanic(t, "framework: une seule source de liste", func() {
+		ListUniq("T", src, autre)
+	})
+	bar := ReactiveObject(TabItem, memo, map[string]string{"id": "id", "label": "value"})
+	mustPanic(t, "framework: onglets fixes et réactifs", func() {
+		TabList(TabItem("a", "A"), bar)
+	})
+	mustPanic(t, "framework: une seule source d'onglets", func() {
+		TabList(bar, bar)
+	})
 }
 
 func TestPastilleAlignee(t *testing.T) {

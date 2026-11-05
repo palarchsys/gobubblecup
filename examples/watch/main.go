@@ -55,8 +55,8 @@ func main() {
 			framework.Button("Checks", checks.Start()),
 			framework.Button("Clock", clock.Start()),
 			framework.Button("Stop", framework.Call{Run: func() {
-				checks.Stop()
-				clock.Stop()
+				checks.Stop().Act()
+				clock.Stop().Act()
 			}}),
 		),
 	)

@@ -32,12 +32,12 @@ func main() {
 	})
 
 	load := framework.Button("Load", framework.Call{Run: func() {
-		framework.ReadFile{Path: "notes.txt", Into: memo}.Act()
+		framework.ReadFile{Path: "notes.txt", Memory: memo}.Act()
 		note.SetText(memo.Get("file").Get("data").Get("value").String())
 	}})
 	save := framework.Button("Save", framework.Call{Run: func() {
-		memo.Set("file", note.Text())
-		framework.WriteFile{Path: "notes.txt", From: memo}.Act()
+		memo.Set("file", note.Value())
+		framework.WriteFile{Path: "notes.txt", Memory: memo}.Act()
 	}})
 
 	grid := framework.Grid(

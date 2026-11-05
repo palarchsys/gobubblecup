@@ -30,7 +30,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("output:", output.Text())
+	fmt.Println("output:", output.Value())
 }
 
 // echoNow rereads the field when the button is pressed.

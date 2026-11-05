@@ -42,5 +42,5 @@ func main() {
 	fmt.Println("name:", name.Value())
 	fmt.Println("port:", port.Value())
 	fmt.Println("code:", code.Value())
-	fmt.Println("notes:", notes.Text())
+	fmt.Println("notes:", notes.Value())
 }

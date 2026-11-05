@@ -9,10 +9,14 @@ type Item struct {
 	Dot   string
 }
 
-func NewItem(id, label string) Item { return Item{ID: id, Label: label} }
+// NewListItem est l'alias de ListItem.
+func NewListItem(id, label string) Item { return Item{ID: id, Label: label} }
 
 // ListItem est le constructeur court d'une ligne : id puis libellé.
-func ListItem(id, label string) Item { return NewItem(id, label) }
+func ListItem(id, label string) Item { return NewListItem(id, label) }
+
+// NewItem est l'ancien nom de NewListItem.
+func NewItem(id, label string) Item { return NewListItem(id, label) }
 
 // WithDot pose la couleur de la pastille. Une couleur vide la retire.
 func (it Item) WithDot(color string) Item {

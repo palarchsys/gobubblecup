@@ -106,7 +106,7 @@ func cancelRuntimes() {
 	items := append([]*runtime(nil), runtimeList.items...)
 	runtimeList.mu.Unlock()
 	for _, rt := range items {
-		rt.Cancel()
+		rt.cancelNow()
 	}
 }
 
@@ -126,13 +126,7 @@ func concreteMemory(store Store) *memory {
 	return memo
 }
 
-func NewRuntime(loop bool, args []string, statusRegex string) *runtime {
-	memo := Memory()
-	for i, arg := range args {
-		memo.Set(fmt.Sprint(i+1), arg)
-	}
-	return Runtime(RuntimeConfig{Loop: loop, Args: memo, StatusRegex: statusRegex})
-}
+func NewRuntime(cfg RuntimeConfig) *runtime { return Runtime(cfg) }
 
 func (r *runtime) Status() string {
 	r.mu.Lock()
@@ -209,7 +203,7 @@ func (r *runtime) launch() {
 	running := r.running
 	r.mu.Unlock()
 	if running {
-		r.Stop()
+		r.stopNow()
 	}
 	r.mu.Lock()
 	r.ctx, r.cancel = context.WithCancel(context.Background())
@@ -223,10 +217,12 @@ func (r *runtime) launch() {
 	go r.run()
 }
 
-// Cancel annule le script en cours et laisse les slots en place.
+// Cancel renvoie l'action du bouton. Le script en cours s'arrête quand elle part.
 // Le slot encore pending passe à error, avec le return déjà reçu.
-// Si le runtime n'est pas en course, Cancel revient tout de suite.
-func (r *runtime) Cancel() {
+// Si le runtime n'est pas en course, l'action revient tout de suite.
+func (r *runtime) Cancel() Action { return Call{Run: r.cancelNow} }
+
+func (r *runtime) cancelNow() {
 	r.mu.Lock()
 	running := r.running
 	r.mu.Unlock()
@@ -307,7 +303,10 @@ func (r *runtime) snapshot() []*bashJob {
 	return append([]*bashJob(nil), r.jobs...)
 }
 
-func (r *runtime) Stop() {
+// Stop renvoie l'action du bouton. Elle vide status et return quand elle part.
+func (r *runtime) Stop() Action { return Call{Run: r.stopNow} }
+
+func (r *runtime) stopNow() {
 	if r.cancel != nil {
 		r.cancel()
 	}
@@ -336,13 +335,19 @@ func (r *runtime) Stop() {
 	}
 }
 
-func (r *runtime) Pause() {
+// Pause renvoie l'action du bouton. Elle retient le runtime entre deux scripts.
+func (r *runtime) Pause() Action { return Call{Run: r.pauseNow} }
+
+func (r *runtime) pauseNow() {
 	r.mu.Lock()
 	r.paused = true
 	r.mu.Unlock()
 }
 
-func (r *runtime) Resume() {
+// Resume renvoie l'action du bouton. Sans pause, elle ne fait rien.
+func (r *runtime) Resume() Action { return Call{Run: r.resumeNow} }
+
+func (r *runtime) resumeNow() {
 	r.mu.Lock()
 	was := r.paused
 	r.paused = false

@@ -200,6 +200,7 @@ func (it *items) body(s Style, armed bool, picked func(int) bool) string {
 }
 
 // ListUniq garde un seul item choisi.
+// Les arguments sont des items fixes, ou une seule source, pas les deux.
 // Value renvoie l'id confirmé par Entrée. Il est vide tant qu'aucun item n'est choisi.
 // Focus renvoie l'id de l'item focalisé. Au départ, c'est le premier.
 type itemSource interface{ Items() []Item }
@@ -220,12 +221,27 @@ func NewListUniq(title string, args ...ListArg) *listUniq {
 		case Item:
 			list = append(list, v)
 		case *reactiveObject[Item]:
+			if v == nil {
+				panic("framework: argument de liste inattendu")
+			}
+			if src != nil {
+				panic("framework: une seule source de liste")
+			}
 			src = v
 		case *reactiveWatcher:
+			if v == nil {
+				panic("framework: argument de liste inattendu")
+			}
+			if src != nil {
+				panic("framework: une seule source de liste")
+			}
 			src = v
 		default:
 			panic("framework: argument de liste inattendu")
 		}
+	}
+	if src != nil && len(list) > 0 {
+		panic("framework: items fixes et réactifs")
 	}
 	l := &listUniq{items: newItems(title, list), picked: -1, src: src}
 	l.sync()

@@ -92,11 +92,11 @@ type Store interface {
 	Set(any, ...any)
 }
 
-func Memory() *memory {
+func Memory() *memory { return NewMemory() }
+
+func NewMemory() *memory {
 	return &memory{head: &memHead{root: newBox(), lists: map[string][]*memory{}}}
 }
-
-func NewMemory() *memory { return Memory() }
 
 func (m *memory) ReadOnly() *memory {
 	if m == nil || m.readonly {

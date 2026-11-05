@@ -180,7 +180,7 @@ Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide da
 
 ## Objets
 
-Chaque constructeur court a un alias `New…` qui fait la même chose. `NewRuntime` est l'exception : il ne reprend pas `Runtime`.
+Chaque constructeur court a un alias `New…` qui fait la même chose. `NewListItem` est l'alias de `ListItem`. `NewRuntime` reprend `Runtime`.
 
 ### Titre
 
@@ -218,7 +218,7 @@ teintes := framework.ListUniq("Teintes",
 )
 ```
 
-Le premier argument est le titre. Les suivants sont des `ListItem`, ou un seul `ReactiveObject`, ou un seul `ReactiveWatcher`.
+Le premier argument est le titre. Les suivants sont des `ListItem`, ou un seul `ReactiveObject`, ou un seul `ReactiveWatcher`. Mélanger des items et une source, ou donner deux sources, arrête le programme.
 
 `Value()` renvoie l'id confirmé par Entrée. Il est vide avant le premier choix. Un second Entrée sur le même item le laisse choisi. Un nouveau choix remplace le précédent.
 
@@ -269,13 +269,13 @@ brouillon := framework.TextArea("Brouillon", "", true, 4, true)
 lecture := framework.TextArea("Sortie", "En attente", false, 4, true)
 ```
 
-Arguments : titre, texte initial, `true` pour écrire, nombre minimum de lignes visibles, puis le cadre. Une valeur de lignes inférieure à 1 devient 1. La barre `█` n'apparaît que si le texte dépasse. `Reload` restaure le texte initial. Coller insère le texte quand la zone est éditable, y compris les retours à la ligne.
+Arguments : titre, texte initial, `true` pour écrire, nombre minimum de lignes visibles, puis le cadre. Une valeur de lignes inférieure à 1 devient 1. La zone se lit avec `Value()` et s'écrit avec `SetText`, comme le champ. `SetEditable` ouvre ou ferme l'écriture. La barre `█` n'apparaît que si le texte dépasse. `Reload` restaure le texte initial. Coller insère le texte quand la zone est éditable, y compris les retours à la ligne.
 
 ```go
 zone := framework.TextView(runtimeA.Memory, lien, "courant")
 ```
 
-`TextView` est une zone en lecture, sans titre, avec un cadre et quatre lignes au minimum. À chaque dessin elle relit la clé dans `lien`, puis le `return` du slot de cet id. `return` est à la racine du slot, pas sous `data`. Un id vide, ou un slot absent, donne un texte vide. Changer d'id remet le défilement en haut. Si le même texte s'allonge et que le bas était déjà visible, le bas le reste. Une fenêtre remontée ne redescend pas toute seule. La zone n'écrit ni dans la mémoire du runtime, ni dans `lien`.
+`TextView` est une zone en lecture, sans titre, avec un cadre et quatre lignes au minimum. À chaque dessin elle relit la clé dans `lien`, puis le `return` du slot de cet id. `return` est à la racine du slot, pas sous `data`. Un id vide, ou un slot absent, donne un texte vide. Changer d'id remet le défilement en haut. Si le même texte s'allonge et que le bas était déjà visible, le bas le reste. Une fenêtre remontée ne redescend pas toute seule. La zone n'écrit ni dans la mémoire du runtime, ni dans `lien`. `SetEditable` sur cette zone arrête le programme.
 
 ### Bouton
 
@@ -289,9 +289,9 @@ Entrée déclenche l'action. Le bouton ne s'ouvre pas.
 
 | Action | Rôle |
 | --- | --- |
-| `Call{Run: fn}` | Appelle votre fonction. |
-| `Reload{Target: zone}` | Recharge une liste, un champ, une zone de texte, une catégorie ou une liste d'onglets. |
-| `Exec{Script, Args, Into}` | Lance un programme. `Into` reçoit la sortie. Sans `Into`, le programme prend le terminal le temps de son exécution. |
+| `Call{Run: fn}` | Appelle votre fonction. Une fonction absente arrête le programme. |
+| `Reload{Target: zone}` | Recharge une liste, un champ, une zone de texte, une catégorie ou une liste d'onglets. Une cible absente arrête le programme. |
+| `Exec{Script, Args, Into}` | Lance un programme. `Into` reçoit la sortie. Sans `Into`, le programme prend le terminal le temps de son exécution. Un script vide arrête le programme. |
 
 Si `Into` est un champ ou une zone placés dans un onglet ou une autre fenêtre, cet écran s'affiche et l'objet prend le focus. La sortie est alors visible. Le saut de ligne final est retiré. En cas d'erreur, le message est ajouté au texte.
 
@@ -397,7 +397,7 @@ executer := framework.Button("Exécuter", runtimeA.Start())
 
 `Init` enregistre les scripts. Vous pouvez déjà lire leur id, leur libellé et leur chemin. `status` et `return` sont vides. Aucun script ne tourne.
 
-`Start()` ne lance rien au moment où vous écrivez le bouton. Il renvoie l'action du bouton. Le lancement a lieu quand l'utilisateur valide Exécuter. Si le runtime tournait déjà, il s'arrête puis repart du début.
+`Start()` ne lance rien au moment où vous écrivez le bouton. Il renvoie l'action du bouton. Le lancement a lieu quand l'utilisateur valide Exécuter. Si le runtime tournait déjà, il s'arrête puis repart du début. `Stop`, `Pause`, `Resume` et `Cancel` renvoient aussi l'action du bouton.
 
 `Bash` s'écrit seulement dans `Functions`. Un `Bash` ailleurs, ou un id ou un chemin vides, arrête le programme. Sans `Dir`, le chemin est relatif au dossier depuis lequel vous avez lancé le binaire. Avec `Dir`, il part de ce répertoire. Le script reçoit ses arguments en lecture seule. `BashEnv` ajoute le même script, plus une map de clés. Une map nulle ou vide équivaut à `Bash`. Une clé absente ne retire pas l'environnement hérité. Le même id remplace le job.
 
@@ -449,7 +449,7 @@ zone := framework.TextView(rt.Memory, lien, "courant")
 
 Le watcher de l'enfant suit `lien` et `rt.Memory`. Il ne garde que les scripts du parent publié. `dot` reçoit le status. La zone lit le `return` du courant. Rien de tout cela n'est écrit à la main dans `Update`.
 
-Ctrl+C a déjà appelé `Cancel`. Si le programme quitte autrement, `rt.Cancel()` coupe encore les scripts en cours. Un second appel ne fait rien.
+Ctrl+C a déjà appelé `Cancel`. Si le programme quitte autrement, `rt.Cancel().Act()` coupe encore les scripts en cours. Un second appel ne fait rien.
 
 ## Watcher
 
@@ -492,8 +492,8 @@ Une seule grille est visible. Les boutons font le tour. À l'arrivée sur une gr
 
 ```go
 memo.Set("file", "bonjour")
-framework.Button("Charger", framework.ReadFile{Path: "notes.txt", Into: memo})
-framework.Button("Enregistrer", framework.WriteFile{Path: "notes.txt", From: memo})
+framework.Button("Charger", framework.ReadFile{Path: "notes.txt", Memory: memo})
+framework.Button("Enregistrer", framework.WriteFile{Path: "notes.txt", Memory: memo})
 ```
 
 Le texte lu et écrit est la valeur `file` de la mémoire. Le chemin est relatif au dossier de lancement du binaire. Un chemin vide ou une mémoire absente arrête le programme.

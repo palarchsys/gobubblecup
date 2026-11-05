@@ -257,7 +257,7 @@ func TestChampDuRuntime(t *testing.T) {
 		t.Fatal("group après reload")
 	}
 
-	rt.Stop()
+	rt.Stop().Act()
 	if rt.Memory.Get("install.snapd").Get("status").String() != "" || rt.Memory.Get("install.snapd").Get("return").String() != "" {
 		t.Fatal("stop")
 	}
@@ -346,7 +346,7 @@ func TestRuntimeBoucleEtPanique(t *testing.T) {
 		state := rt.Status()
 		if strings.Contains(ret, "success") && state != "not_initialized" {
 			seen = ret
-			rt.Stop()
+			rt.Stop().Act()
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -525,7 +525,7 @@ func TestCancelEtStop(t *testing.T) {
 	annule := makeRT()
 	annule.Start().Act()
 	waitReturn(t, annule, "deux", "deja")
-	callWithin(t, 2*time.Second, annule.Cancel)
+	callWithin(t, 2*time.Second, func() { annule.Cancel().Act() })
 	if annule.Status() != "terminated" {
 		t.Fatalf("cancel %q", annule.Status())
 	}
@@ -541,12 +541,12 @@ func TestCancelEtStop(t *testing.T) {
 	if annule.Memory.Get("trois").Get("status").String() != "" {
 		t.Fatal("le troisième n'est pas vide")
 	}
-	callWithin(t, time.Second, annule.Cancel)
+	callWithin(t, time.Second, func() { annule.Cancel().Act() })
 
 	stoppe := makeRT()
 	stoppe.Start().Act()
 	waitReturn(t, stoppe, "deux", "deja")
-	callWithin(t, 2*time.Second, stoppe.Stop)
+	callWithin(t, 2*time.Second, func() { stoppe.Stop().Act() })
 	if stoppe.Status() != "not_initialized" {
 		t.Fatalf("stop %q", stoppe.Status())
 	}

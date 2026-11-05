@@ -60,7 +60,13 @@ func (r *tabRow) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
 
 func (r *tabRow) View(Style, Widget, bool) string { return "" }
 
+// TabArg est un onglet fixe ou une source réactive d'onglets.
+type TabArg interface{ isTabArg() }
+
+func (t *tabItem) isTabArg() {}
+
 // TabList pose une rangée d'onglets collée au panneau, sans titre.
+// Les arguments sont des onglets fixes, ou une seule source, pas les deux.
 // La barre n'est pas un arrêt de focus. Onglets et panneau restent gris.
 type tabList struct {
 	gate
@@ -75,9 +81,9 @@ type tabList struct {
 // tabSource reconstruit les onglets, comme un ReactiveObject(TabItem, ...).
 type tabSource interface{ Items() []*tabItem }
 
-func TabList(args ...any) *tabList { return NewTabList(args...) }
+func TabList(args ...TabArg) *tabList { return NewTabList(args...) }
 
-func NewTabList(args ...any) *tabList {
+func NewTabList(args ...TabArg) *tabList {
 	var items []*tabItem
 	var src tabSource
 	for _, arg := range args {
@@ -88,6 +94,9 @@ func NewTabList(args ...any) *tabList {
 			}
 			items = append(items, v)
 		case *reactiveObject[*tabItem]:
+			if v == nil {
+				panic("framework: argument d'onglet inattendu")
+			}
 			if src != nil {
 				panic("framework: une seule source d'onglets")
 			}

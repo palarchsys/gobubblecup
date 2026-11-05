@@ -13,7 +13,9 @@ type grid struct {
 	inside bool
 }
 
-func Row(widgets ...Widget) []Widget { return widgets }
+func Row(widgets ...Widget) []Widget { return NewRow(widgets...) }
+
+func NewRow(widgets ...Widget) []Widget { return widgets }
 
 func Grid(rows ...[]Widget) *grid { return NewGrid(rows...) }
 
@@ -30,7 +32,7 @@ func NewGrid(rows ...[]Widget) *grid {
 	return g
 }
 
-func (g *grid) Focus() Widget { return g.focus }
+func (g *grid) Focused() Widget { return g.focus }
 
 func (g *grid) Inside() bool { return g.inside }
 

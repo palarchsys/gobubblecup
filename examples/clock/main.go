@@ -40,9 +40,9 @@ func main() {
 		framework.Row(framework.ListUniq("Time", watch)),
 		framework.Row(
 			framework.Button("Start", clock.Start()),
-			framework.Button("Pause", framework.Call{Run: clock.Pause}),
-			framework.Button("Resume", framework.Call{Run: clock.Resume}),
-			framework.Button("Stop", framework.Call{Run: clock.Stop}),
+			framework.Button("Pause", clock.Pause()),
+			framework.Button("Resume", clock.Resume()),
+			framework.Button("Stop", clock.Stop()),
 		),
 	)
 	style := framework.DefaultStyle()

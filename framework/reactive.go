@@ -11,14 +11,7 @@ type reactiveObject[T any] struct {
 }
 
 func ReactiveObject[T any](ctor func(id, label string) T, memo *memory, fields map[string]string) *reactiveObject[T] {
-	if ctor == nil || memo == nil {
-		panic("framework: objet réactif incomplet")
-	}
-	copied := map[string]string{}
-	for key, value := range fields {
-		copied[key] = value
-	}
-	return &reactiveObject[T]{ctor: ctor, memo: memo, fields: copied, origin: cloneEntries(memo.Entries())}
+	return NewReactiveObject(ctor, memo, fields)
 }
 
 func cloneEntries(in []memEntry) []memEntry {
@@ -42,10 +35,19 @@ func (r *reactiveObject[T]) Reload() {
 }
 
 func NewReactiveObject[T any](ctor func(id, label string) T, memo *memory, fields map[string]string) *reactiveObject[T] {
-	return ReactiveObject(ctor, memo, fields)
+	if ctor == nil || memo == nil {
+		panic("framework: objet réactif incomplet")
+	}
+	copied := map[string]string{}
+	for key, value := range fields {
+		copied[key] = value
+	}
+	return &reactiveObject[T]{ctor: ctor, memo: memo, fields: copied, origin: cloneEntries(memo.Entries())}
 }
 
 func (r *reactiveObject[T]) isListArg() {}
+
+func (r *reactiveObject[T]) isTabArg() {}
 
 func (r *reactiveObject[T]) Items() []T {
 	if r == nil || r.memo == nil || r.ctor == nil {

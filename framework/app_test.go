@@ -56,13 +56,13 @@ func TestDemoRechargerEtEcho(t *testing.T) {
 		t.Fatal("la teinte ajoutée doit apparaître")
 	}
 
-	for i := 0; i < 6 && app.grid.Focus() != recharger; i++ {
+	for i := 0; i < 6 && app.grid.Focused() != recharger; i++ {
 		app = press(t, app, key(tea.KeyRight))
-		t.Logf("droite %d focus %T", i, app.grid.Focus())
+		t.Logf("droite %d focus %T", i, app.grid.Focused())
 	}
-	if app.grid.Focus() != recharger {
+	if app.grid.Focused() != recharger {
 		spots := app.grid.spots()
-		t.Fatalf("pas sur Recharger, %d spots, focus %T", len(spots), app.grid.Focus())
+		t.Fatalf("pas sur Recharger, %d spots, focus %T", len(spots), app.grid.Focused())
 	}
 	app = press(t, app, key(tea.KeyEnter))
 	if teintes.Value() != "" {
@@ -74,8 +74,8 @@ func TestDemoRechargerEtEcho(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != echo {
-		t.Fatalf("focus %T", app.grid.Focus())
+	if app.grid.Focused() != echo {
+		t.Fatalf("focus %T", app.grid.Focused())
 	}
 	next, cmd := app.Update(key(tea.KeyEnter))
 	app = next.(App)
@@ -88,11 +88,11 @@ func TestDemoRechargerEtEcho(t *testing.T) {
 	}
 	next, _ = app.Update(done)
 	app = next.(App)
-	if sortie.Text() != "bonjour" {
-		t.Fatalf("sortie %q err %v", sortie.Text(), done.Err)
+	if sortie.Value() != "bonjour" {
+		t.Fatalf("sortie %q err %v", sortie.Value(), done.Err)
 	}
-	if vues.SelectedID() != "saisie" || app.grid.Focus() != sortie {
-		t.Fatalf("onglet %s focus %T", vues.SelectedID(), app.grid.Focus())
+	if vues.SelectedID() != "saisie" || app.grid.Focused() != sortie {
+		t.Fatalf("onglet %s focus %T", vues.SelectedID(), app.grid.Focused())
 	}
 	if !strings.Contains(plain(app.View().Content), "bonjour") {
 		t.Fatal(plain(app.View().Content))
@@ -113,35 +113,35 @@ func TestFlechesEntreZonesActives(t *testing.T) {
 		Row(recharger),
 	))
 
-	if app.grid.Focus() != uniq {
+	if app.grid.Focused() != uniq {
 		t.Fatal("le focus ignore le titre et part sur la première zone active")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != executer {
+	if app.grid.Focused() != executer {
 		t.Fatal("droite sort de la catégorie")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != mult {
+	if app.grid.Focused() != mult {
 		t.Fatal("droite suit l'ordre haut-gauche vers droite-bas")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != recharger {
+	if app.grid.Focused() != recharger {
 		t.Fatal("droite descend à la rangée suivante")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != uniq {
+	if app.grid.Focused() != uniq {
 		t.Fatal("droite reprend au premier élément")
 	}
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != recharger {
+	if app.grid.Focused() != recharger {
 		t.Fatal("gauche reprend au dernier élément")
 	}
 	app = press(t, app, key(tea.KeyUp))
 	app = press(t, app, key(tea.KeyDown))
-	if app.grid.Focus() != recharger {
+	if app.grid.Focused() != recharger {
 		t.Fatal("haut et bas ne changent pas de zone")
 	}
-	if app.grid.Focus() == mute {
+	if app.grid.Focused() == mute {
 		t.Fatal("la liste inactive est sautée")
 	}
 }
@@ -157,12 +157,12 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, key(tea.KeyDown))
-	if uniq.Cursor() != 2 || uniq.Focus() != "Jaune" || app.grid.Focus() != uniq || app.grid.Inside() {
+	if uniq.Cursor() != 2 || uniq.Focus() != "Jaune" || app.grid.Focused() != uniq || app.grid.Inside() {
 		t.Fatalf("curseur %d focus %q", uniq.Cursor(), uniq.Focus())
 	}
 	app = press(t, app, key(tea.KeyEnter))
 	item, ok := uniq.Choice()
-	if !ok || item.Label != "Jaune" || app.grid.Inside() || app.grid.Focus() != uniq {
+	if !ok || item.Label != "Jaune" || app.grid.Inside() || app.grid.Focused() != uniq {
 		t.Fatalf("choix %#v inside %v", item, app.grid.Inside())
 	}
 	app = press(t, app, key(tea.KeyEnter))
@@ -191,7 +191,7 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 
 	held := uniq.Focus()
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != mult || uniq.Focus() != held {
+	if app.grid.Focused() != mult || uniq.Focus() != held {
 		t.Fatal("la liste garde son item")
 	}
 	left := plain(app.View().Content)
@@ -199,7 +199,7 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 		t.Fatal("le ✓ reste visible hors de la liste")
 	}
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != uniq || uniq.Focus() != "Jaune" || uniq.Cursor() != 2 {
+	if app.grid.Focused() != uniq || uniq.Focus() != "Jaune" || uniq.Cursor() != 2 {
 		t.Fatalf("retour %q", uniq.Focus())
 	}
 
@@ -208,14 +208,14 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 	app = press(t, app, key(tea.KeyEnter))
 	app = press(t, app, key(tea.KeyUp))
 	app = press(t, app, key(tea.KeyEnter))
-	if app.grid.Inside() || app.grid.Focus() != mult {
+	if app.grid.Inside() || app.grid.Focused() != mult {
 		t.Fatal("entrée coche sans ouvrir la liste")
 	}
 	labels := make([]string, 0, 2)
 	for _, item := range mult.Choices() {
 		labels = append(labels, item.Label)
 	}
-	if strings.Join(labels, ",") != "Casque,Veste" || app.grid.Focus() != mult {
+	if strings.Join(labels, ",") != "Casque,Veste" || app.grid.Focused() != mult {
 		t.Fatalf("multiple %v", labels)
 	}
 	app = press(t, app, key(tea.KeyDown))
@@ -238,11 +238,11 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 	for _, ch := range []string{"1", "2", "a", "3", "4", "5"} {
 		app = press(t, app, textKey(ch))
 	}
-	if port.Value() != "1234" || !app.grid.Inside() || app.grid.Focus() != port {
+	if port.Value() != "1234" || !app.grid.Inside() || app.grid.Focused() != port {
 		t.Fatalf("nombre %q inside %v", port.Value(), app.grid.Inside())
 	}
 	app = press(t, app, key(tea.KeyDown))
-	if app.grid.Focus() != port {
+	if app.grid.Focused() != port {
 		t.Fatal("bas ne quitte plus le champ")
 	}
 	same := false
@@ -262,7 +262,7 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != secret {
+	if app.grid.Focused() != secret {
 		t.Fatal("droite au bord passe au champ suivant")
 	}
 	app = press(t, app, textKey("q"))
@@ -275,18 +275,18 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 	}
 	app = press(t, app, key(tea.KeyLeft))
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != secret {
+	if app.grid.Focused() != secret {
 		t.Fatal("gauche déplace le curseur dans le champ")
 	}
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != port {
+	if app.grid.Focused() != port {
 		t.Fatal("gauche au bord revient au champ précédent")
 	}
 	for i := 0; i < 4; i++ {
 		app = press(t, app, key(tea.KeyRight))
 	}
-	if app.grid.Focus() != zone {
-		t.Fatalf("la file continue vers la zone, focus %T", app.grid.Focus())
+	if app.grid.Focused() != zone {
+		t.Fatalf("la file continue vers la zone, focus %T", app.grid.Focused())
 	}
 
 	if !strings.Contains(plain(zone.View(DefaultStyle(), nil, false)), "█") {
@@ -305,8 +305,8 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 	app = press(t, app, textKey("a"))
 	app = press(t, app, key(tea.KeyEnter))
 	app = press(t, app, key(tea.KeyEsc))
-	if edit.Text() != "a\n" || app.grid.Inside() {
-		t.Fatalf("texte %q inside %v", edit.Text(), app.grid.Inside())
+	if edit.Value() != "a\n" || app.grid.Inside() {
+		t.Fatalf("texte %q inside %v", edit.Value(), app.grid.Inside())
 	}
 }
 
@@ -343,8 +343,8 @@ func TestActions(t *testing.T) {
 		t.Fatal("suite")
 	}
 	app = next.(App)
-	if sortie.Text() != "ok" {
-		t.Fatalf("sortie %q", sortie.Text())
+	if sortie.Value() != "ok" {
+		t.Fatalf("sortie %q", sortie.Value())
 	}
 
 	app = press(t, app, key(tea.KeyRight))
@@ -587,7 +587,7 @@ func TestOnglets(t *testing.T) {
 	bas := NewButton("Bas", nil)
 	app := New(DefaultStyle(), NewGrid(Row(vues), Row(bas)))
 
-	if app.grid.Focus() != fiches || app.grid.Inside() || vues.SelectedID() != "fiches" {
+	if app.grid.Focused() != fiches || app.grid.Inside() || vues.SelectedID() != "fiches" {
 		t.Fatal("le focus part sur la première zone de l'onglet")
 	}
 	view := plain(app.View().Content)
@@ -602,11 +602,11 @@ func TestOnglets(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyEnter))
-	if app.grid.Inside() || app.grid.Focus() != fiches || fiches.Value() != "Une" {
+	if app.grid.Inside() || app.grid.Focused() != fiches || fiches.Value() != "Une" {
 		t.Fatal("entrée choisit l'item sans ouvrir la liste")
 	}
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
-	if vues.Cursor() != 1 || vues.SelectedID() != "notes" || app.grid.Focus() != notes || app.grid.Inside() {
+	if vues.Cursor() != 1 || vues.SelectedID() != "notes" || app.grid.Focused() != notes || app.grid.Inside() {
 		t.Fatalf("curseur %d onglet %s", vues.Cursor(), vues.SelectedID())
 	}
 	view = plain(app.View().Content)
@@ -627,11 +627,11 @@ func TestOnglets(t *testing.T) {
 		t.Fatal("le premier onglet fermé rejoint le panneau")
 	}
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
-	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches || app.grid.Inside() {
+	if vues.SelectedID() != "fiches" || app.grid.Focused() != fiches || app.grid.Inside() {
 		t.Fatal("tab en bout de liste revient au premier onglet")
 	}
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
-	if vues.SelectedID() != "notes" || app.grid.Focus() != notes || app.grid.Inside() {
+	if vues.SelectedID() != "notes" || app.grid.Focused() != notes || app.grid.Inside() {
 		t.Fatal("tab repart vers l'onglet suivant")
 	}
 	app = press(t, app, key(tea.KeyEnter))
@@ -639,11 +639,11 @@ func TestOnglets(t *testing.T) {
 		t.Fatal("entrée ne change pas d'onglet")
 	}
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != bas {
+	if app.grid.Focused() != bas {
 		t.Fatal("droite sort de l'onglet")
 	}
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyTab})
-	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches || app.grid.Inside() {
+	if vues.SelectedID() != "fiches" || app.grid.Focused() != fiches || app.grid.Inside() {
 		t.Fatal("tab depuis une autre zone ouvre l'onglet suivant")
 	}
 }
@@ -667,7 +667,7 @@ func TestOngletsReactifs(t *testing.T) {
 	if !strings.Contains(view, "Fiches") || !strings.Contains(view, "Notes") || strings.Contains(view, "Plus") {
 		t.Fatal(view)
 	}
-	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches {
+	if vues.SelectedID() != "fiches" || app.grid.Focused() != fiches {
 		t.Fatal("le premier onglet reste affiché")
 	}
 	memo.Set("fiches", "Atelier")
@@ -676,12 +676,12 @@ func TestOngletsReactifs(t *testing.T) {
 	if !strings.Contains(view, "Atelier") || !strings.Contains(view, "Plus") || strings.Contains(view, "Fiches") {
 		t.Fatal(view)
 	}
-	if vues.SelectedID() != "fiches" || app.grid.Focus() != fiches {
+	if vues.SelectedID() != "fiches" || app.grid.Focused() != fiches {
 		t.Fatalf("onglet %s", vues.SelectedID())
 	}
 	app = press(t, app, key(tea.KeyTab))
 	app = press(t, app, key(tea.KeyTab))
-	if vues.SelectedID() != "plus" || app.grid.Focus() != plus {
+	if vues.SelectedID() != "plus" || app.grid.Focused() != plus {
 		t.Fatalf("nouvel onglet %s", vues.SelectedID())
 	}
 	src.Reload()

@@ -44,12 +44,10 @@ func NewTextInput(title string, kind InputKind, limit int, border bool) *textInp
 // Value est la valeur réactive du champ.
 func (t *textInput) Value() string { return string(t.value) }
 
-func (t *textInput) SetValue(v string) {
-	t.value = []rune(v)
+func (t *textInput) SetText(text string) {
+	t.value = []rune(text)
 	t.caret = len(t.value)
 }
-
-func (t *textInput) SetText(text string) { t.SetValue(text) }
 
 // Paste insère le texte du presse-papier. Les chiffres seuls passent dans un champ nombre.
 func (t *textInput) Paste(text string) {
@@ -95,7 +93,7 @@ func (t *textInput) deleteForward() {
 func (t *textInput) SetEditable(on bool) { t.editable = on }
 
 func (t *textInput) Reload() {
-	t.SetValue(t.origin)
+	t.SetText(t.origin)
 }
 
 func (t *textInput) Handle(inside bool, key string) (bool, tea.Cmd) {
@@ -273,7 +271,7 @@ func (t *textArea) Paste(text string) {
 	t.follow()
 }
 
-func (t *textArea) Text() string { return strings.Join(t.lines, "\n") }
+func (t *textArea) Value() string { return strings.Join(t.lines, "\n") }
 
 func (t *textArea) SetText(text string) {
 	t.lines = splitText(text)
@@ -282,6 +280,13 @@ func (t *textArea) SetText(text string) {
 }
 
 func (t *textArea) Top() int { return t.top }
+
+func (t *textArea) SetEditable(on bool) {
+	if t.src != nil {
+		panic("framework: zone liée")
+	}
+	t.editable = on
+}
 
 func (t *textArea) Reload() {
 	t.lines = append([]string(nil), t.origin...)
@@ -383,7 +388,7 @@ func (t *textArea) pull(s Style) {
 		t.clamp()
 		return
 	}
-	if text == t.Text() {
+	if text == t.Value() {
 		return
 	}
 	atBottom := t.top+visible >= len(t.lines)

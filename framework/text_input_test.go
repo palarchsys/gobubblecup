@@ -9,7 +9,7 @@ import (
 
 func TestCurseurRecouvreLeCaractere(t *testing.T) {
 	nom := NewTextInput("", InputText, 0, false)
-	nom.SetValue("ab")
+	nom.SetText("ab")
 	nom.caret = 1
 	view := plain(nom.View(DefaultStyle(), nom, true))
 	i := strings.Index(view, "a")
@@ -89,7 +89,7 @@ func TestZoneLieeAuSlot(t *testing.T) {
 
 func TestSupprEtInser(t *testing.T) {
 	nom := NewTextInput("Nom", InputText, 0, true)
-	nom.SetValue("abc")
+	nom.SetText("abc")
 	nom.caret = 1
 	nom.Handle(true, "delete")
 	if nom.Value() != "ac" || nom.caret != 1 {
@@ -101,7 +101,7 @@ func TestSupprEtInser(t *testing.T) {
 		t.Fatalf("fin %q caret %d", nom.Value(), nom.caret)
 	}
 
-	nom.SetValue("abc")
+	nom.SetText("abc")
 	nom.caret = 1
 	nom.Handle(true, "insert")
 	nom.Handle(true, "Z")
@@ -115,10 +115,25 @@ func TestSupprEtInser(t *testing.T) {
 	}
 
 	app := New(DefaultStyle(), NewGrid(Row(nom)))
-	nom.SetValue("xy")
+	nom.SetText("xy")
 	nom.caret = 0
 	app = press(t, app, key(tea.KeyDelete))
 	if nom.Value() != "y" {
 		t.Fatalf("touche %q", nom.Value())
 	}
+}
+
+func TestZoneEtActions(t *testing.T) {
+	zone := TextArea("N", "abc", false, 2, true)
+	if zone.Value() != "abc" {
+		t.Fatal(zone.Value())
+	}
+	zone.SetEditable(true)
+	src := Memory()
+	focus := Memory()
+	view := TextView(src, focus, "id")
+	mustPanic(t, "framework: zone liée", func() { view.SetEditable(true) })
+	mustPanic(t, "framework: exec incomplet", func() { Exec{}.Act() })
+	mustPanic(t, "framework: rechargement incomplet", func() { Reload{}.Act() })
+	mustPanic(t, "framework: appel incomplet", func() { Call{}.Act() })
 }

@@ -46,7 +46,7 @@ func main() {
 		framework.Row(list),
 		framework.Row(
 			framework.Button("Start", checks.Start()),
-			framework.Button("Stop", framework.Call{Run: checks.Stop}),
+			framework.Button("Stop", checks.Stop()),
 		),
 	)
 	style := framework.DefaultStyle()

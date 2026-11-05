@@ -41,7 +41,7 @@ func TestFenetreEtSaisie(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != code {
+	if app.grid.Focused() != code {
 		t.Fatal("droite quitte le champ au bord")
 	}
 	next, cmd = app.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
@@ -57,25 +57,25 @@ func TestFenetreEtSaisie(t *testing.T) {
 	}
 
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != suivante {
+	if app.grid.Focused() != suivante {
 		t.Fatal("le bouton suivante")
 	}
 	app = press(t, app, key(tea.KeyEnter))
-	if w.Index() != 1 || app.grid != autre || app.grid.Focus() != note {
+	if w.Index() != 1 || app.grid != autre || app.grid.Focused() != note {
 		t.Fatalf("fenêtre %d", w.Index())
 	}
 	app = press(t, app, key(tea.KeyRight))
 	app = press(t, app, key(tea.KeyEnter))
-	if w.Index() != 0 || app.grid != page || app.grid.Focus() != nom || !app.grid.Inside() {
+	if w.Index() != 0 || app.grid != page || app.grid.Focused() != nom || !app.grid.Inside() {
 		t.Fatalf("retour %d", w.Index())
 	}
 	app = press(t, app, key(tea.KeyRight))
 	app = press(t, app, key(tea.KeyRight))
-	if app.grid.Focus() != suivante {
+	if app.grid.Focused() != suivante {
 		t.Fatal("le bouton suivante, au second tour")
 	}
 	app = press(t, app, key(tea.KeyEnter))
-	if w.Index() != 1 || app.grid.Focus() != note || !app.grid.Inside() {
+	if w.Index() != 1 || app.grid.Focused() != note || !app.grid.Inside() {
 		t.Fatal("l'arrivée repose le focus sur le premier élément")
 	}
 }
@@ -85,7 +85,7 @@ func TestFichierEtBarre(t *testing.T) {
 	path := filepath.Join(dir, "notes.txt")
 	memo := Memory()
 	memo.Set("file", "bonjour")
-	if cmd := (WriteFile{Path: path, From: memo}).Act(); cmd != nil {
+	if cmd := (WriteFile{Path: path, Memory: memo}).Act(); cmd != nil {
 		t.Fatal("écriture")
 	}
 	got, err := os.ReadFile(path)
@@ -93,7 +93,7 @@ func TestFichierEtBarre(t *testing.T) {
 		t.Fatalf("fichier %q %v", got, err)
 	}
 	memo.Set("file", "vide")
-	if cmd := (ReadFile{Path: path, Into: memo}).Act(); cmd != nil {
+	if cmd := (ReadFile{Path: path, Memory: memo}).Act(); cmd != nil {
 		t.Fatal("lecture")
 	}
 	if memo.Get("file").Get("data").Get("value").String() != "bonjour" {

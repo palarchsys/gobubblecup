@@ -11,7 +11,7 @@ func TestDesactive(t *testing.T) {
 	alpha := NewButton("Alpha", nil)
 	beta := NewButton("Beta", nil)
 	app := New(DefaultStyle(), NewGrid(Row(alpha, beta)))
-	if app.grid.Focus() != alpha {
+	if app.grid.Focused() != alpha {
 		t.Fatal("départ")
 	}
 	alpha.Disable()
@@ -22,16 +22,16 @@ func TestDesactive(t *testing.T) {
 	if !strings.Contains(raw, "107;107;107") {
 		t.Fatal("l'objet désactivé est gris")
 	}
-	if app.grid.Focus() == alpha || !alpha.Disabled() {
+	if app.grid.Focused() == alpha || !alpha.Disabled() {
 		t.Fatal("le focus quitte l'objet désactivé")
 	}
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() == alpha {
+	if app.grid.Focused() == alpha {
 		t.Fatal("gauche ne revient pas sur un objet désactivé")
 	}
 	alpha.Enable()
 	app = press(t, app, key(tea.KeyLeft))
-	if app.grid.Focus() != alpha || alpha.Disabled() {
+	if app.grid.Focused() != alpha || alpha.Disabled() {
 		t.Fatal("enable rend le focus")
 	}
 
@@ -42,7 +42,7 @@ func TestDesactive(t *testing.T) {
 	app = New(DefaultStyle(), NewGrid(Row(cat), Row(out)))
 	cat.Disable()
 	app.View()
-	if !inner.Disabled() || app.grid.Focus() == inner {
+	if !inner.Disabled() || app.grid.Focused() == inner {
 		t.Fatal("la catégorie désactivée retire ses enfants du focus")
 	}
 	app = press(t, app, key(tea.KeyEnter))
