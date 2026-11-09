@@ -320,6 +320,7 @@ func (g *grid) move(key string) {
 	}
 	if !found {
 		g.focus = spots[0]
+		g.follow()
 		return
 	}
 	if key == "right" {
@@ -334,6 +335,7 @@ func (g *grid) move(key string) {
 		}
 	}
 	g.focus = spots[index]
+	g.follow()
 }
 
 // render mesure chaque objet, puis donne le vide de droite au dernier

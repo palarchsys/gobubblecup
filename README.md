@@ -157,22 +157,24 @@ Le focus parcourt les zones actives de la grille affichée, de haut-gauche vers 
 
 Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son item. Entrée confirme cet item. La liste se souvient de la ligne et la retrouve quand le focus revient. Au départ, c'est la première ligne. Cette ligne garde un fond `#37373d`, même quand la liste n'a plus le focus. Il n'y a pas de marqueur `›`. Un `✓` marque une ligne choisie.
 
-Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Le curseur recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ.
+Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Dès que le champ a le focus, le rectangle recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ.
 
 Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. En lecture, Entrée ouvre, haut et bas défilent, Entrée ou Échap referment.
 
 ## Style
 
-`framework.DefaultStyle()` reprend le thème sombre de Visual Studio Code.
+`framework.DefaultStyle()` reprend les encres de Liltress.
 
 | Rôle | Couleur |
 | --- | --- |
-| Texte | `#d4d4d4` |
-| Titres | `#569cd6` |
-| Contour au repos | `#6b6b6b` |
-| Contour au focus | `#007acc` |
-| Contour pendant l'édition d'une zone de texte | `#9cdcfe` |
+| Texte | `#cccccc` |
+| Titres | `#e5b684` |
+| Contour au repos | `#e5b684` |
+| Contour au focus | `#eccba8` |
+| Rectangle de saisie, ligne de liste armée | `#44aae6` |
 | Fond de l'écran et des zones | `#1e1e1e` |
+
+Le contour au focus est l'or du repos éclairci de 30 % vers le blanc, sans gras. Une zone ouverte utilise le même trait. Le gris `#6b6b6b` est réservé au mot `pending` et aux objets désactivés.
 
 Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. Sans `Height`, une ligne a la hauteur de son plus grand objet. Une fenêtre connue ne fait alors que réduire ce qui dépasse : le contenu court ne descend pas jusqu'en bas. Une `Height` positive est le format de l'écran, légende comprise. Les listes et les zones se partagent ce qui reste sous la légende, sans aller plus bas que ce format. Deux listes d'une même ligne se partagent cette hauteur. La liste n'en montre qu'une fenêtre : le titre reste, et le curseur aussi. La zone garde au moins son nombre de lignes, et prend la hauteur encore libre dans le format. Les démos posent `Height` aux trois quarts de la largeur par défaut.
 
@@ -260,7 +262,7 @@ Le label est à gauche, la saisie à droite, sur la même ligne.
 
 Le troisième argument est le nombre maximum de caractères. `0` ne limite pas. Le quatrième argument dessine le cadre. Sans cadre, des champs empilés se touchent.
 
-Le focus suffit pour écrire. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ.
+Le focus suffit pour écrire. Le label prend alors la même surbrillance que le contour, et le rectangle de ciblage apparaît. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ.
 
 ### Zone de texte
 
@@ -308,7 +310,7 @@ vues.SetTabs(
 )
 ```
 
-Une application ne contient qu'une liste d'onglets. Une seconde arrête le programme. La barre n'a pas de titre. Au lancement, le focus est la première zone de l'onglet affiché. Tab change d'onglet depuis n'importe où, y compris pendant une saisie, et reprend au premier. Entrée ne change pas d'onglet. Le contour des onglets et du panneau reste gris. Seul le libellé de l'onglet ouvert prend la couleur de titre.
+Une application ne contient qu'une liste d'onglets. Une seconde arrête le programme. La barre n'a pas de titre. Au lancement, le focus est la première zone de l'onglet affiché. Tab change d'onglet depuis n'importe où, y compris pendant une saisie, et reprend au premier. Entrée ne change pas d'onglet. Le contour des onglets et du panneau reste l'or du repos. Seul le libellé de l'onglet ouvert prend la couleur de titre.
 
 L'onglet ouvert n'a pas de trait en bas : il rejoint le panneau. Un premier onglet fermé joint le panneau avec `├`. Un dernier onglet fermé au bord droit utilise `┤`.
 

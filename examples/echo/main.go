@@ -13,8 +13,9 @@ import (
 func main() {
 	message := framework.TextInput("Message", framework.InputText, 40, true)
 	output := framework.TextArea("Output", "Waiting", false, 6, true)
-	// The action reads the field on click, then lets Exec draw the output.
-	echo := framework.Button("Echo", echoNow{read: message.Value, into: output})
+	// Exec runs when the button is pressed, so the field is read at that moment.
+	// Call would drop the command that draws the output.
+	echo := framework.Button("Echo", fieldExec{read: message.Value, into: output})
 	reload := framework.Button("Reload", framework.Reload{Target: output})
 
 	grid := framework.Grid(
@@ -33,13 +34,13 @@ func main() {
 	fmt.Println("output:", output.Value())
 }
 
-// echoNow rereads the field when the button is pressed.
-type echoNow struct {
+// fieldExec is the button action. Act returns the Exec command.
+type fieldExec struct {
 	read func() string
 	into framework.Sink
 }
 
-func (e echoNow) Act() tea.Cmd {
+func (e fieldExec) Act() tea.Cmd {
 	return framework.Exec{
 		Script: "bash",
 		Args:   []string{"examples/scripts/echo.sh", e.read()},

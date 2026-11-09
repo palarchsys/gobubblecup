@@ -31,6 +31,8 @@ func main() {
 		},
 	})
 
+	// ReadFile and WriteFile use the "file" entry. The area is copied around them
+	// because it is the text being edited, not that entry.
 	load := framework.Button("Load", framework.Call{Run: func() {
 		framework.ReadFile{Path: "notes.txt", Memory: memo}.Act()
 		note.SetText(memo.Get("file").Get("data").Get("value").String())

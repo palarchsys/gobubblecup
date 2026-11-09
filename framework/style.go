@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"fmt"
 	"image/color"
 	"strings"
 
@@ -61,20 +62,24 @@ func focusedEdge(self, focused Widget, inside bool) frame {
 	return edgeOf(true, inside)
 }
 
-// dimmed peint textes et titres avec le gris de repos.
+// dimmed peint l'objet avec le gris muet. Le contour en fait partie :
+// Idle est l'or du thème, pas ce gris.
 // quiet fait gagner ce gris sur un mot de pastille.
 func (s Style) dimmed() Style {
-	s.Text = s.Idle
-	s.Accent = s.Idle
-	s.Focus = s.Idle
-	s.Inside = s.Idle
+	mute := muteColor()
+	s.Text = mute
+	s.Accent = mute
+	s.Focus = mute
+	s.Inside = mute
+	s.Idle = mute
 	s.quiet = true
 	return s
 }
 
-// DefaultStyle reprend Dark (Visual Studio), le thème de base de VS Code.
-// Fond #1e1e1e, texte #d4d4d4, titres #569cd6.
-// Contour au repos #6b6b6b, focus #007acc, édition #9cdcfe.
+// DefaultStyle reprend les encres de Liltress.
+// Fond #1e1e1e, texte #cccccc, titres et contour au repos #e5b684.
+// Le focus éclaircit ce contour de 30 % vers le blanc, sans gras.
+// Le rectangle de saisie et la ligne de liste armée sont #44aae6.
 // L'écran et les zones partagent ce fond : un écart non peint
 // laisserait voir le fond du terminal.
 // Mesures figées : PadX 1, PadY 0, Margin 1 horizontal.
@@ -84,11 +89,11 @@ func DefaultStyle() Style {
 	return Style{
 		Background: Color("#1e1e1e"),
 		Surface:    Color("#1e1e1e"),
-		Text:       Color("#d4d4d4"),
-		Accent:     Color("#569cd6"),
-		Idle:       Color("#6b6b6b"),
-		Focus:      Color("#007acc"),
-		Inside:     Color("#9cdcfe"),
+		Text:       Color("#cccccc"),
+		Accent:     Color("#e5b684"),
+		Idle:       Color("#e5b684"),
+		Focus:      Color("#44aae6"),
+		Inside:     Color("#44aae6"),
 		Width:      22,
 		PadX:       1,
 		PadY:       0,
@@ -168,14 +173,28 @@ func (s Style) line(text string, c color.Color, bold bool, width int) string {
 
 func (s Style) ink(edge frame) (color.Color, bool) {
 	switch edge {
-	case frameInside:
-		return s.Inside, true
-	case frameFocus:
-		return s.Focus, true
+	case frameInside, frameFocus:
+		return lighten(s.Idle), false
 	default:
 		return s.Idle, false
 	}
 }
+
+// lighten rapproche la couleur du blanc de 30 %.
+// Sur l'or #e5b684, le contour au focus devient #eccba8.
+func lighten(c color.Color) color.Color {
+	if c == nil {
+		return muteColor()
+	}
+	r, g, b, _ := c.RGBA()
+	mix := func(v uint32) int {
+		x := int(v >> 8)
+		return (x*70 + 255*30) / 100
+	}
+	return Color(fmt.Sprintf("#%02x%02x%02x", mix(r), mix(g), mix(b)))
+}
+
+func muteColor() color.Color { return Color("#6b6b6b") }
 
 // paper est la couleur unique de l'écran et des zones.
 func (s Style) paper() color.Color {
@@ -227,19 +246,16 @@ func (s Style) corners() (tl, tr, bl, br, h, v string) {
 }
 
 // Les quatre mots de pastille ne sont pas des champs de Style.
-// pending reprend le gris de repos. Les trois autres sont les teintes
-// Dark de Visual Studio pour un succès, un avertissement et une erreur.
-func statusInk(word string, idle color.Color) (color.Color, bool) {
+// pending est le gris muet. Les trois autres sont les encres Liltress :
+// succès #35cc94, avertissement #ff8700, erreur #f14c4c.
+func statusInk(word string) (color.Color, bool) {
 	switch word {
 	case "pending":
-		if idle != nil {
-			return idle, true
-		}
-		return Color("#6b6b6b"), true
+		return muteColor(), true
 	case "success":
-		return Color("#89d185"), true
+		return Color("#35cc94"), true
 	case "warning":
-		return Color("#cca700"), true
+		return Color("#ff8700"), true
 	case "error":
 		return Color("#f14c4c"), true
 	default:
@@ -267,7 +283,7 @@ func (s Style) dotInk(dot string) (color.Color, bool) {
 	if dot == "" {
 		return nil, false
 	}
-	if ink, ok := statusInk(dot, s.Idle); ok {
+	if ink, ok := statusInk(dot); ok {
 		if s.quiet {
 			return s.Idle, true
 		}

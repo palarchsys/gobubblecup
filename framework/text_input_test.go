@@ -20,14 +20,49 @@ func TestCurseurRecouvreLeCaractere(t *testing.T) {
 		t.Fatal(view)
 	}
 	raw := nom.View(DefaultStyle(), nom, true)
-	if !lineHas(raw, "ab", "0;122;204") {
+	if !lineHas(raw, "ab", "68;170;230") {
 		t.Fatal("le caractère sous le curseur n'est pas marqué")
+	}
+	if !lineHas(nom.View(DefaultStyle(), nom, false), "ab", "68;170;230") {
+		t.Fatal("le rectangle n'apparaît pas au focus")
+	}
+	if lineHas(nom.View(DefaultStyle(), nil, false), "ab", "68;170;230") {
+		t.Fatal("le rectangle apparaît sans focus")
 	}
 	nom.caret = 2
 	end := plain(nom.View(DefaultStyle(), nom, true))
 	j := strings.Index(end, "ab")
 	if j < 0 || j+2 >= len(end) || end[j+2] != ' ' {
 		t.Fatalf("fin de ligne %q", end)
+	}
+}
+
+func TestLabelAuFocus(t *testing.T) {
+	nom := NewTextInput("Nom", InputText, 0, false)
+	nom.SetText("a")
+	repos := nom.View(DefaultStyle(), nil, false)
+	if !lineHas(repos, "Nom", "204;204;204") || lineHas(repos, "Nom", "236;203;168") {
+		t.Fatal("label au repos")
+	}
+	if !lineHas(nom.View(DefaultStyle(), nom, false), "Nom", "236;203;168") {
+		t.Fatal("label au focus")
+	}
+}
+
+func TestArriveeSurChamp(t *testing.T) {
+	bouton := NewButton("Ok", nil)
+	nom := NewTextInput("Nom", InputText, 0, false)
+	nom.SetText("ab")
+	app := New(DefaultStyle(), NewGrid(Row(bouton, nom)))
+	if app.grid.Focused() != bouton || app.grid.Inside() {
+		t.Fatal("départ")
+	}
+	app = press(t, app, key(tea.KeyRight))
+	if app.grid.Focused() != nom || !app.grid.Inside() {
+		t.Fatal("le champ n'est pas ouvert")
+	}
+	if !lineHas(app.View().Content, "ab", "68;170;230") {
+		t.Fatal("rectangle absent")
 	}
 }
 

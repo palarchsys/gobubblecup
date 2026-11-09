@@ -178,9 +178,15 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 	}
 	line := ""
 	if labelW > 0 {
-		line = s.line(label, s.Accent, true, labelW) + s.paint(s.Text, false, " ")
+		ink := s.Text
+		bold := false
+		if focused == t && !t.Disabled() {
+			ink = lighten(s.Idle)
+			bold = true
+		}
+		line = s.line(label, ink, bold, labelW) + s.paint(s.Text, false, " ")
 	}
-	line += s.caretLine(shown, t.caret, inside && focused == t, fieldW)
+	line += s.caretLine(shown, t.caret, focused == t && !t.Disabled(), fieldW)
 	if !t.border {
 		if gap := width - lipgloss.Width(line); gap > 0 {
 			line += s.shade(gap)

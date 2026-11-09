@@ -487,8 +487,36 @@ func TestCadre(t *testing.T) {
 	if s.Background != s.Surface || s.Background != Color("#1e1e1e") {
 		t.Fatal("le fond et les zones diffèrent")
 	}
-	if s.Text != Color("#d4d4d4") || s.Accent != Color("#569cd6") || s.Idle != Color("#6b6b6b") || s.Focus != Color("#007acc") || s.Inside != Color("#9cdcfe") {
+	if s.Text != Color("#cccccc") || s.Accent != Color("#e5b684") || s.Idle != Color("#e5b684") || s.Focus != Color("#44aae6") || s.Inside != Color("#44aae6") {
 		t.Fatal("encres")
+	}
+	if ink, ok := statusInk("pending"); !ok || ink != Color("#6b6b6b") {
+		t.Fatal("pending")
+	}
+	if ink, ok := statusInk("success"); !ok || ink != Color("#35cc94") {
+		t.Fatal("succès")
+	}
+	if ink, ok := statusInk("warning"); !ok || ink != Color("#ff8700") {
+		t.Fatal("avertissement")
+	}
+	btn := NewButton("Ok", nil)
+	repos := btn.View(s, nil, false)
+	if !strings.Contains(repos, "229;182;132") || strings.Contains(repos, "236;203;168") {
+		t.Fatal("contour au repos")
+	}
+	vif := btn.View(s, btn, false)
+	if !strings.Contains(vif, "236;203;168") || strings.Contains(vif, "68;170;230") {
+		t.Fatal("contour au focus")
+	}
+	custom := s
+	custom.Idle = Color("#000000")
+	if !strings.Contains(btn.View(custom, btn, false), "76;76;76") {
+		t.Fatal("la surbrillance ne suit pas Idle")
+	}
+	btn.Disable()
+	eteint := btn.View(s, btn, false)
+	if !strings.Contains(eteint, "107;107;107") || strings.Contains(eteint, "229;182;132") {
+		t.Fatal("désactivé")
 	}
 	view := NewButton("Ok", nil).View(s, nil, false)
 	want := 1 + 2*s.PadY + 2

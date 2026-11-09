@@ -5,10 +5,10 @@
 //
 // Gauche et droite parcourent les zones actives, de haut-gauche vers droite-bas, et bouclent.
 // Haut et bas déplacent l'item de la liste focalisée. Entrée le choisit ou le décoche.
-// Le contour au focus est bleu. Une liste ne s'ouvre pas.
+// Le contour au focus est l'or du repos, éclairci, sans gras. Une liste ne s'ouvre pas.
 // Tab va à l'onglet de droite. Le parcours reprend au début.
 // La barre n'est pas un focus.
-// Le contour des onglets et du panneau reste gris.
+// Le contour des onglets et du panneau reste l'or du repos.
 // L'objet de droite prend le vide horizontal. La hauteur rejoint l'objet d'en dessous.
 package framework
 

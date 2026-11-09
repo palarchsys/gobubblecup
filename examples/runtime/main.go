@@ -1,4 +1,5 @@
-// Runtime run once. Three scripts run in order. The list rereads their slots.
+// Runtime run once. Three scripts run in order.
+// The list reads each slot. The area shows the return of the focused line.
 //
 // From the module root: go run ./examples/runtime
 // Script paths are relative to this directory.
@@ -23,27 +24,19 @@ func main() {
 	// Init writes id, label, and path. No script starts.
 	checks.Init()
 
-	// The function writes into a fresh memory. It does not write the runtime back.
-	watch := framework.ReactiveWatcher(framework.WatcherConfig{
-		Watcher: []framework.Store{checks.Memory},
-		Functions: func(args []framework.Store) any {
-			rows := framework.Memory()
-			for _, id := range []string{"one", "two", "three"} {
-				rows.Set(id, runtimeLine(args[0], id))
-			}
-			return framework.ReactiveObject(
-				framework.ListItem,
-				rows,
-				map[string]string{"id": "id", "label": "value"},
-			)
-		},
-	})
-	list := framework.ListUniq("Scripts", watch)
+	link := framework.Memory()
+	scripts := framework.ListUniq("Scripts", framework.ReactiveObject(
+		framework.ListItem,
+		checks.Memory,
+		map[string]string{"id": "id", "label": "label", "dot": "status"},
+	))
+	scripts.Bind(link, "current")
+	output := framework.TextView(checks.Memory, link, "current")
 
 	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(name),
-		framework.Row(list),
+		framework.Row(framework.Category("Run", scripts, output)),
 		framework.Row(
 			framework.Button("Start", checks.Start()),
 			framework.Button("Stop", checks.Stop()),
@@ -58,13 +51,4 @@ func main() {
 	}
 	fmt.Println("cycle:", checks.Status())
 	fmt.Println(checks.Log())
-}
-
-func runtimeLine(memo framework.Store, id string) string {
-	label := memo.Get(id).Get("label").String()
-	status := memo.Get(id).Get("status").String()
-	if status == "" {
-		status = "waiting"
-	}
-	return label + " · " + status
 }

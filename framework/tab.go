@@ -67,7 +67,7 @@ func (t *tabItem) isTabArg() {}
 
 // TabList pose une rangée d'onglets collée au panneau, sans titre.
 // Les arguments sont des onglets fixes, ou une seule source, pas les deux.
-// La barre n'est pas un arrêt de focus. Onglets et panneau restent gris.
+// La barre n'est pas un arrêt de focus. Onglets et panneau restent l'or du repos.
 type tabList struct {
 	gate
 	items    []*tabItem

@@ -1,4 +1,5 @@
 // A watcher follows two runtimes and rebuilds a single list.
+// Check rows keep the script label. Their dot is the slot status.
 //
 // From the module root: go run ./examples/watch
 package main
@@ -37,13 +38,13 @@ func main() {
 		Functions: func(args []framework.Store) any {
 			rows := framework.Memory()
 			for _, id := range []string{"one", "two", "three"} {
-				rows.Set(id, slot(args[0], id))
+				put(rows, id, args[0].Get(id).Get("label").String(), args[0].Get(id).Get("status").String())
 			}
-			rows.Set("clock", "Clock · "+firstLine(args[1].Get("clock").Get("return").String()))
+			put(rows, "clock", "Clock · "+firstLine(args[1].Get("clock").Get("return").String()), "")
 			return framework.ReactiveObject(
 				framework.ListItem,
 				rows,
-				map[string]string{"id": "id", "label": "value"},
+				map[string]string{"id": "id", "label": "value", "dot": "dot"},
 			)
 		},
 	})
@@ -68,13 +69,12 @@ func main() {
 	}
 }
 
-func slot(memo framework.Store, id string) string {
-	label := memo.Get(id).Get("label").String()
-	status := memo.Get(id).Get("status").String()
-	if status == "" {
-		status = "waiting"
+func put(rows framework.Store, id, label, dot string) {
+	data := framework.Data{"id": id, "value": label}
+	if dot != "" {
+		data["dot"] = dot
 	}
-	return label + " · " + status
+	rows.Set(framework.Data{"id": id, "data": data})
 }
 
 func firstLine(text string) string {
