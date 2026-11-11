@@ -37,7 +37,7 @@ Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`)
 | `echo` | A script's output arrives in an area |
 | `disable` | A category grays its children that are still active |
 | `image` | PNG, SVG glyph, gray, and a row pushed to the right |
-| `screen` | Frame, flags, form, labels, catalog, status, key legend, and Bind. Run from the module root |
+| `screen` | Frame, form, labels, catalog, status, key legend, and Bind. Run from the module root |
 | `page` | Installer walk: choice, field, host probe, and one script. Suite, Back, and the host phrases are French |
 
 The bash scripts are in `examples/scripts/`. The runtime launches them with `bash`. They must print `success`, `warning`, or `error`. `host.sh` prints `hostname`, `os`, `version`, and `install` before that word. `apply.sh` reads `LANGUAGE` and `NAME`.

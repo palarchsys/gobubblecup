@@ -1,6 +1,5 @@
-// A screen described with Frame, Flags, Form, Status, Keys, and Bind.
+// A screen described with Frame, Form, Status, Keys, and Bind.
 // Labels come from locale/<lang>/label.txt. Legend phrases come from locale/<lang>/screen.txt.
-// Flags come from flags/<code>.svg.
 //
 // From the module root: go run ./examples/screen
 package main
@@ -23,14 +22,8 @@ func main() {
 		return
 	}
 	order := []string{"en", "fr", "de", "es"}
-	flags, err := framework.Flags("examples/screen/flags", order, 10)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 	titles := map[string]string{"en": "Account", "fr": "Compte", "de": "Konto", "es": "Cuenta"}
 	lang := 1
-	flags.Select(order[lang])
 	form := framework.Form(titles[order[lang]],
 		framework.Field("LOGIN", framework.InputText),
 		framework.Field("ADDRESS", framework.InputText),
@@ -46,7 +39,6 @@ func main() {
 	legend.Use(phrases, order[lang], "TITLE", leftKeys, leftIDs, rightKeys, rightIDs)
 	grid := framework.Grid(
 		framework.Row(framework.Frame("gobubblecup", framework.AlignCenter, "")),
-		framework.Row(flags),
 		framework.Row(form),
 		framework.Row(status),
 		framework.Row(legend),
@@ -62,7 +54,6 @@ func main() {
 			"ctrl+l": func() framework.Cmd {
 				lang = (lang + 1) % len(order)
 				code := order[lang]
-				flags.Select(code)
 				form.Use(labels, code)
 				form.SetTitle(titles[code])
 				status.SetText(code)
@@ -76,6 +67,5 @@ func main() {
 		return
 	}
 	fmt.Println("language:", order[lang])
-	fmt.Println("flag:", flags.Selected())
 	fmt.Println("values:", form.Values())
 }

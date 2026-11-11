@@ -324,10 +324,9 @@ func TestLabelsRejectsALooseLine(t *testing.T) {
 	}
 }
 
-func TestSVGGlyphAndFlags(t *testing.T) {
-	fr := []byte(`<svg width="90" height="60"><rect width="30" height="60" fill="#0055A4"/><rect x="30" width="30" height="60" fill="#FFFFFF"/><rect x="60" width="30" height="60" fill="#EF4135"/></svg>`)
-	en := []byte(`<svg width="90" height="60"><defs><clipPath id="en"><rect width="90" height="60"/></clipPath></defs><g><rect width="90" height="60" fill="#012169"/><path d="M0 0 L90 60 M90 0 L0 60" stroke="#FFFFFF" stroke-width="4"/><path d="M45 0 V60 M0 30 H90" stroke="#C8102E" stroke-width="4"/></g></svg>`)
-	if err := IncludeSVG("fr.svg", fr); err != nil {
+func TestSVGGlyph(t *testing.T) {
+	mark := []byte(`<svg width="40" height="20"><defs><clipPath id="m"><rect width="40" height="20"/></clipPath></defs><g><rect width="40" height="20" fill="#44aae6"/><path d="M0 10 H40 M20 0 V20" stroke="#e5b684" stroke-width="2"/></g></svg>`)
+	if err := IncludeSVG("glyph-mark.svg", mark); err != nil {
 		t.Fatal(err)
 	}
 	if err := IncludeSVG("bad", []byte(`<svg width="10" height="10"><circle r="2"/></svg>`)); err == nil {
@@ -336,39 +335,9 @@ func TestSVGGlyphAndFlags(t *testing.T) {
 	if err := IncludeSVG("curve", []byte(`<svg width="10" height="10"><path d="M0 0 C1 1 2 2 3 3" stroke="#000000" stroke-width="1"/></svg>`)); err == nil {
 		t.Fatal("ordre")
 	}
-	glyph := Glyph("fr.svg", 6)
+	glyph := Glyph("glyph-mark.svg", 6)
 	if glyph.Active() || strings.Contains(plain(glyph.View(DefaultStyle(), nil, false)), "╭") {
 		t.Fatal("glyphe")
-	}
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "fr.svg"), fr, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "en.svg"), en, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	flags, err := Flags(dir, []string{"en", "fr"}, 6)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if flags.Selected() != "" || flags.Active() {
-		t.Fatal("départ")
-	}
-	flags.Select("fr")
-	if flags.Selected() != "fr" || !flags.pics[0].gray || flags.pics[1].gray {
-		t.Fatal("select")
-	}
-	flags.Select("zz")
-	if flags.Selected() != "fr" {
-		t.Fatal("inconnu")
-	}
-	s := DefaultStyle()
-	s.Width = 40
-	row := Grid(Row(Title("Liltress")), Row(flags)).layout(s, 0, false)[1]
-	body := plain(row)
-	lead := len(body) - len(strings.TrimLeft(body, " "))
-	if lead < 8 {
-		t.Fatalf("drapeaux à gauche %d", lead)
 	}
 }
 

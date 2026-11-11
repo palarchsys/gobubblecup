@@ -660,15 +660,7 @@ marque.SetGray(true)
 
 `Glyph` dessine l'image sans cadre et ne prend pas le focus. `SetGray(true)` passe en luminance et laisse l'objet actif. `Disable` continue de griser le cadre et de retirer le focus. `examples/image` montre le PNG, le glyphe, le gris et `RowEnd`.
 
-```go
-drapeaux, err := framework.Flags("examples/screen/flags", []string{"en", "fr", "de", "es"}, 10)
-drapeaux.Select("fr")
-drapeaux.Selected()
-```
-
-`Flags` lit `dossier/<code>.svg` dans l'ordre donné et aligne les glyphes à droite. Au départ, tous sont en couleur. `Select` colore ce code et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré, ou `""` tant qu'aucun n'est choisi. Les drapeaux ne prennent pas le focus.
-
-`Buttons` prend des `ListItem`. Le mot dessiné est le label, l'id est la valeur relue. Le premier est en couleur, les autres en gris. La rangée ne prend pas le focus. `Select` colore un id. Un id absent ne change rien. `Selected` rend l'id coloré. `Next` avance, boucle, et rend le nouvel id. `IDs` rend une copie des id. `SetItems` remplace les items et garde l'index. Une longueur différente arrête le programme. Le vide d'une rangée plus large va à gauche. `Row` suffit. On garde `Button` quand Entrée lance une action, et `Flags` quand le glyphe est un SVG.
+`Buttons` prend des `ListItem`. Le mot dessiné est le label, l'id est la valeur relue. Le premier est en couleur, les autres en gris. La rangée ne prend pas le focus. `Select` colore un id. Un id absent ne change rien. `Selected` rend l'id coloré. `Next` avance, boucle, et rend le nouvel id. `IDs` rend une copie des id. `SetItems` remplace les items et garde l'index. Une longueur différente arrête le programme. Le vide d'une rangée plus large va à gauche. `Row` suffit. On garde `Button` quand Entrée lance une action.
 
 ```go
 langues := framework.Buttons(
@@ -680,12 +672,11 @@ code := langues.Selected()
 
 ## Décrire un écran
 
-Ces appels décrivent une ligne, un formulaire, des drapeaux et une légende. Le programme de `examples/screen` les assemble. Il se lance depuis la racine du module, pour que `examples/screen/locale` et `examples/screen/flags` soient trouvés. Un programme qui n'appelle pas `Bind` garde Ctrl+C, Ctrl+V et la légende du bas.
+Ces appels décrivent une ligne, un formulaire et une légende. Le programme de `examples/screen` les assemble. Il se lance depuis la racine du module, pour que `examples/screen/locale` soit trouvé. Un programme qui n'appelle pas `Bind` garde Ctrl+C, Ctrl+V et la légende du bas.
 
 ```go
 grille := framework.Grid(
     framework.Row(framework.Frame("gobubblecup", framework.AlignCenter, "")),
-    framework.Row(drapeaux),
     framework.Row(compte),
     framework.Row(framework.Status("Status : ", "fr")),
     framework.Row(framework.Keys("Touches", gauche, droite)),

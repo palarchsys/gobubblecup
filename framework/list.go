@@ -449,6 +449,18 @@ func lineWidth(view string) int {
 	return lipgloss.Width(line)
 }
 
+func padLeft(s Style, block string, n int) string {
+	if n <= 0 || block == "" {
+		return block
+	}
+	side := s.shade(n)
+	lines := strings.Split(block, "\n")
+	for i, line := range lines {
+		lines[i] = side + line
+	}
+	return strings.Join(lines, "\n")
+}
+
 func lineCount(view string) int {
 	if view == "" {
 		return 0
