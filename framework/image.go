@@ -25,9 +25,11 @@ const asciiPixels = " .,:;i1tfLCG08@"
 // La largeur est en colonnes. La hauteur suit le ratio de la source.
 type picture struct {
 	gate
-	path string
-	cols int
-	img  image.Image
+	path   string
+	cols   int
+	img    image.Image
+	border bool
+	gray   bool
 }
 
 // included garde les images compilées dans le binaire, indexées par leur nom.
@@ -64,7 +66,34 @@ func NewImage(path string, width int) *picture {
 	if img == nil {
 		panic("framework: image absente du binaire")
 	}
-	return &picture{gate: gate{on: true}, path: path, cols: width, img: img}
+	return &picture{gate: gate{on: true}, path: path, cols: width, img: img, border: true}
+}
+
+// Glyph dessine l'image incluse, sans cadre. Il ne prend pas le focus.
+func Glyph(name string, cols int) *picture {
+	p := NewImage(name, cols)
+	p.SetBorder(false)
+	p.SetActive(false)
+	return p
+}
+
+// SetBorder dessine le cadre. Sans cadre, la largeur reste celle demandée.
+func (p *picture) SetBorder(on bool) {
+	if p == nil || p.border == on {
+		return
+	}
+	p.border = on
+	notify()
+}
+
+// SetGray passe l'image en luminance. L'objet reste actif.
+// Disable continue de griser le cadre et de retirer le focus.
+func (p *picture) SetGray(on bool) {
+	if p == nil || p.gray == on {
+		return
+	}
+	p.gray = on
+	notify()
 }
 
 func (p *picture) Handle(bool, string) (bool, tea.Cmd) {
@@ -73,6 +102,20 @@ func (p *picture) Handle(bool, string) (bool, tea.Cmd) {
 
 func (p *picture) View(s Style, focused Widget, inside bool) string {
 	cols := p.cols
+	var wash color.Color
+	if p.Disabled() {
+		s = s.dimmed()
+		wash = s.Idle
+	}
+	if !p.border {
+		if s.fit && s.Width > 0 && s.Width < cols {
+			cols = s.Width
+		}
+		if cols < 1 {
+			cols = 1
+		}
+		return p.ascii(cols, wash)
+	}
 	chrome := 2 + 2*s.padX()
 	width := cols + chrome
 	if s.fit && s.Width > chrome {
@@ -83,11 +126,6 @@ func (p *picture) View(s Style, focused Widget, inside bool) string {
 	}
 	if cols < 1 {
 		cols = 1
-	}
-	var wash color.Color
-	if p.Disabled() {
-		s = s.dimmed()
-		wash = s.Idle
 	}
 	body := padASCII(s, p.ascii(cols, wash), s.content(width))
 	return s.box(body, focusedEdge(p, focused, inside), width, 0, "")
@@ -131,6 +169,9 @@ func (p *picture) ascii(cols int, wash color.Color) string {
 			var ink color.Color = lipgloss.Color(hex(r, g, bl))
 			if wash != nil {
 				ink = wash
+			} else if p.gray {
+				y := byte((int(r)*299 + int(g)*587 + int(bl)*114) / 1000)
+				ink = lipgloss.Color(hex(y, y, y))
 			}
 			b.WriteString(lipgloss.NewStyle().Foreground(ink).Render(ch))
 		}

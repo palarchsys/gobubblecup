@@ -7,6 +7,16 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// KeyMap remplace les touches du cadre.
+// Quit vide reste ctrl+c. Paste vide reste ctrl+v.
+// On associe une touche de l'écran à une commande. Quitter et coller passent avant.
+type KeyMap struct {
+	Quit       string
+	Paste      string
+	HideLegend bool
+	On         map[string]func() tea.Cmd
+}
+
 // App branche la grille sur Bubble Tea.
 // La grille est un pointeur : les changements survivent à la copie reçue par Update.
 type App struct {
@@ -14,6 +24,8 @@ type App struct {
 	win           *window
 	grid          *grid
 	width, height int
+	keys          KeyMap
+	bound         bool
 }
 
 func New(style Style, grid *grid) App {
@@ -46,6 +58,31 @@ func NewWindow(style Style, w *window) App {
 	return App{style: style, win: w, grid: w.current()}
 }
 
+// Bind choisit les touches quitter et coller, et peut masquer la légende stock.
+// Sans Bind, ctrl+c quitte, ctrl+v colle, et la légende reste.
+// Le résultat remplace l'application.
+func (a App) Bind(keys KeyMap) App {
+	a.keys = keys
+	a.bound = true
+	return a
+}
+
+func (a App) quitKey() string {
+	if a.bound && a.keys.Quit != "" {
+		return a.keys.Quit
+	}
+	return "ctrl+c"
+}
+
+func (a App) pasteKey() string {
+	if a.bound && a.keys.Paste != "" {
+		return a.keys.Paste
+	}
+	return "ctrl+v"
+}
+
+func (a App) hideLegend() bool { return a.bound && a.keys.HideLegend }
+
 func (a App) sync() App {
 	if a.win != nil && len(a.win.pages) > 0 {
 		a.grid = a.win.current()
@@ -74,12 +111,23 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.sync(), nil
 	case tea.KeyPressMsg:
 		key := msg.String()
-		if key == "ctrl+c" {
+		if key == a.quitKey() {
 			cancelRuntimes()
 			return a.sync(), tea.Quit
 		}
-		if key == "ctrl+v" && a.grid.canPaste() {
+		if key == a.pasteKey() && a.grid.canPaste() {
 			return a.sync(), func() tea.Msg { return tea.ReadClipboard() }
+		}
+		if a.bound && key == a.pasteKey() {
+			return a.sync(), nil
+		}
+		if a.bound {
+			if fn, ok := a.keys.On[key]; ok {
+				if fn == nil {
+					return a.sync(), nil
+				}
+				return a.sync(), fn()
+			}
 		}
 		cmd := a.grid.Key(key)
 		return a.sync(), cmd
@@ -109,8 +157,12 @@ func (a App) View() tea.View {
 	// Height du style est le format de l'écran. Les objets gardent la leur à zéro.
 	format := s.Height
 	s.Height = 0
-	help := NewLegend().View(s, nil, false)
-	legend := lineCount(help)
+	help := ""
+	legend := 0
+	if !a.hideLegend() {
+		help = NewLegend().View(s, nil, false)
+		legend = lineCount(help)
+	}
 	budget, fill := 0, false
 	if format > 0 {
 		budget = format - legend
@@ -138,14 +190,18 @@ func (a App) View() tea.View {
 			width = w
 		}
 	}
-	if w := lipgloss.Width(help); w > width {
-		width = w
+	if help != "" {
+		if w := lipgloss.Width(help); w > width {
+			width = w
+		}
 	}
 	blocks := make([]string, 0, len(rows)+1)
 	for _, row := range rows {
 		blocks = append(blocks, widen(s, row, width))
 	}
-	blocks = append(blocks, widen(s, help, width))
+	if help != "" {
+		blocks = append(blocks, widen(s, help, width))
+	}
 	body := inset(s, strings.Join(blocks, "\n"), s.margin())
 	screenH := 0
 	if format > 0 {

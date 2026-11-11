@@ -88,7 +88,7 @@ func Runtime(cfg RuntimeConfig) *runtime {
 	return rt
 }
 
-// Les runtimes créés restent ici. Ctrl+C les arrête tous.
+// Les runtimes créés restent ici. Ctrl+C les arrête tous, sauf si Bind a choisi une autre touche.
 var runtimeList struct {
 	mu    sync.Mutex
 	items []*runtime

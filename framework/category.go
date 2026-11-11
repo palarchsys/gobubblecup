@@ -28,6 +28,15 @@ func NewCategory(legend string, kids ...Widget) *category {
 
 func (c *category) Kids() []Widget { return c.kids }
 
+// SetLegend remplace le titre posé sur le trait haut.
+func (c *category) SetLegend(legend string) {
+	if c == nil || c.legend == legend {
+		return
+	}
+	c.legend = legend
+	notify()
+}
+
 func (c *category) Active() bool {
 	if c == nil || c.disabled {
 		return false

@@ -152,12 +152,12 @@ Le focus parcourt les zones actives de la grille affichée, de haut-gauche vers 
 | Retour arrière | Efface le caractère à gauche du curseur. |
 | Suppr | Efface le caractère sous le curseur. |
 | Inser | Bascule entre insertion et écrasement dans un champ. |
-| Ctrl+V | Colle le presse-papier dans le champ ou la zone éditable. |
+| Ctrl+V | Colle le presse-papier dans le champ ou la zone éditable qui a le focus. |
 | Ctrl+C | Quitte, y compris dans un champ, et arrête les scripts en cours. |
 
 Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son item. Entrée confirme cet item. La liste se souvient de la ligne et la retrouve quand le focus revient. Au départ, c'est la première ligne. Cette ligne garde un fond `#37373d`, même quand la liste n'a plus le focus. Il n'y a pas de marqueur `›`. Un `✓` marque une ligne choisie.
 
-Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Dès que le champ a le focus, le rectangle recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ.
+Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Dès que le champ a le focus, le rectangle recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ. Dans un formulaire, ils passent au champ voisin et bouclent. Gauche et droite y restent dans la saisie.
 
 Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. En lecture, Entrée ouvre, haut et bas défilent, Entrée ou Échap referment.
 
@@ -535,10 +535,45 @@ Le second argument de `Image` est la largeur en colonnes. La hauteur suit le rat
 
 `//go:embed` exige que `logo.png` soit dans le paquet du fichier source, à côté de `main.go`, au moment de `go build`.
 
+## Décrire un écran
+
+Ces appels décrivent une ligne, un formulaire, des drapeaux et une légende. Un programme qui ne les appelle pas garde Ctrl+C, Ctrl+V et la légende du bas.
+
+`Bind` remplace l'application. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une commande. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien.
+
+```go
+app = framework.New(style, grille).Bind(framework.KeyMap{
+    Quit:       "ctrl+q",
+    Paste:      "ctrl+c",
+    HideLegend: true,
+    On: map[string]func() tea.Cmd{
+        "ctrl+l": func() tea.Cmd { return nil },
+    },
+})
+```
+
+`Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus.
+
+`Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel. `SetText` ne remplace que la valeur.
+
+`Field(nom, Text)` ou `Field(nom, Secret)` prépare un champ. `Secret` masque la saisie. `Form(titre, champs...)` les empile, aligne les saisies et envoie haut et bas au champ voisin. Chaque libellé est complété jusqu'au plus long, puis ` : `. `SetLabels` remplace les libellés et garde les valeurs. `SetTitle` change le titre du trait. `Values` rend les textes dans l'ordre des champs. `Use(labels, langue)` pose une langue. Une langue absente, ou un nom de champ absent, arrête le programme.
+
+`Labels(dossier)` lit `dossier/en/label.txt`, puis `fr`, `de` et `es`. Une clé `[LABEL_NOM]` est stockée sous `NOM`. Un fichier illisible ou une ligne hors clé renvoie une erreur. Une clé que l'écran ne demande pas peut manquer.
+
+`Row` donne le vide horizontal au dernier objet. `RowEnd` le donne à gauche. Les autres objets gardent leur largeur.
+
+`IncludeSVG(nom, octets)` rasterise un SVG et le range comme `IncludeImage`. Un rectangle est rempli. Un trait n'accepte que `M`, `L`, `H` et `V`. Un groupe est ignoré. `defs` et `clipPath` sont sautés. Un autre élément ou un autre ordre renvoie une erreur. `Glyph(nom, colonnes)` dessine cette image sans cadre et ne prend pas le focus. `SetGray(true)` passe en luminance et laisse l'objet actif.
+
+`Flags(dossier, ordre, colonnes)` lit `dossier/<code>.svg` et aligne les glyphes à droite. `Select(code)` colore ce drapeau et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré. Au départ, tous sont en couleur.
+
+`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel.
+
+`SetVerticalFields` sur une grille de champs isolés fait le même parcours que `Form`. `SetTitle` sur un champ et `SetLegend` sur une catégorie restent disponibles pour un objet seul.
+
 ## Limites
 
 - Une seule liste d'onglets par application.
 - Le thème est unique. `Disable` grise un objet sans le masquer.
-- `q` dans un champ saisit la lettre q. `q` ne quitte pas. Ctrl+C quitte, y compris dans un champ, et arrête les runtimes en cours.
+- `q` dans un champ saisit la lettre q. `q` ne quitte pas. Ctrl+V colle dans le champ focalisé quand il peut recevoir du texte. Ctrl+C quitte, y compris dans un champ, et arrête les runtimes en cours. `Bind` peut choisir d'autres touches.
 - Les scripts bash ne sont pas compilés dans le binaire. Leur chemin part du dossier de lancement.
 - Un widget nul dans une grille ou une catégorie arrête le programme.

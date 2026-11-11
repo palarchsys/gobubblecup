@@ -8,14 +8,23 @@ import (
 // Grid définit les lignes et les objets de chaque ligne.
 // Le focus est l'objet actif, pas la case qui le contient.
 type grid struct {
-	rows   [][]Widget
-	focus  Widget
-	inside bool
+	rows     [][]Widget
+	focus    Widget
+	inside   bool
+	vertical bool
 }
 
 func Row(widgets ...Widget) []Widget { return NewRow(widgets...) }
 
 func NewRow(widgets ...Widget) []Widget { return widgets }
+
+// RowEnd aligne la rangée à droite. Le vide va à gauche.
+// Les objets gardent leur largeur. Row continue de donner le vide au dernier.
+func RowEnd(widgets ...Widget) []Widget {
+	row := make([]Widget, 0, len(widgets)+1)
+	row = append(row, slack{})
+	return append(row, widgets...)
+}
 
 func Grid(rows ...[]Widget) *grid { return NewGrid(rows...) }
 
@@ -33,6 +42,16 @@ func NewGrid(rows ...[]Widget) *grid {
 }
 
 func (g *grid) Focused() Widget { return g.focus }
+
+// SetVerticalFields envoie haut et bas d'un champ au champ voisin.
+// Gauche et droite restent dans le champ. Sans appel, haut et bas n'en sortent pas.
+// Un formulaire le fait lui-même.
+func (g *grid) SetVerticalFields(on bool) {
+	if g == nil {
+		return
+	}
+	g.vertical = on
+}
 
 func (g *grid) Inside() bool { return g.inside }
 
@@ -166,6 +185,21 @@ func (g *grid) Key(key string) tea.Cmd {
 		return cmd
 	}
 	if field, ok := w.(*textInput); ok {
+		if g.columnFields(w) {
+			switch key {
+			case "up":
+				g.inside = false
+				g.move("left")
+				return nil
+			case "down":
+				g.inside = false
+				g.move("right")
+				return nil
+			}
+			g.inside = true
+			_, cmd := field.Handle(true, key)
+			return cmd
+		}
 		if key == "up" || key == "down" {
 			g.inside = true
 			return nil
@@ -340,6 +374,7 @@ func (g *grid) move(key string) {
 
 // render mesure chaque objet, puis donne le vide de droite au dernier
 // de la ligne et la hauteur de la ligne au plus grand.
+// RowEnd place ce vide à gauche. Les autres objets gardent leur largeur.
 // L'écart horizontal entre deux objets est une seule cellule, de la couleur des zones.
 // Les rangées se suivent sans ligne vide.
 // Sans budget, la hauteur reste celle du contenu.
@@ -559,13 +594,20 @@ func (g *grid) layout(s Style, budget int, fill bool) []string {
 		}
 		maxH := heights[i]
 		slack := iface - span(measured[i])
+		slackAt := len(row) - 1
+		for j, w := range row {
+			if taker, ok := w.(slacker); ok && taker.TakesSlack() {
+				slackAt = j
+				break
+			}
+		}
 		pieces := make([]string, 0, len(row)*2)
 		for j, w := range row {
 			if j > 0 && gap > 0 {
 				pieces = append(pieces, s.veil(gap, maxH))
 			}
 			width := measured[i][j].w
-			if j == len(row)-1 {
+			if j == slackAt {
 				width += slack
 			}
 			if width < 1 {
@@ -579,4 +621,72 @@ func (g *grid) layout(s Style, budget int, fill bool) []string {
 		lines[i] = lipgloss.JoinHorizontal(lipgloss.Top, pieces...)
 	}
 	return lines
+}
+
+func (g *grid) columnFields(w Widget) bool {
+	if g == nil || w == nil {
+		return false
+	}
+	if g.vertical {
+		return true
+	}
+	for _, row := range g.rows {
+		for _, cell := range row {
+			if columnHolds(cell, w) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func columnHolds(cell, target Widget) bool {
+	if cell == nil || target == nil {
+		return false
+	}
+	if col, ok := cell.(columnFields); ok && col.ColumnFields() && widgetHolds(cell, target) {
+		return true
+	}
+	group, ok := cell.(kids)
+	if !ok {
+		return false
+	}
+	for _, kid := range group.Kids() {
+		if columnHolds(kid, target) {
+			return true
+		}
+	}
+	return false
+}
+
+// slack est le vide que RowEnd pose à gauche de la rangée.
+type slack struct{}
+
+func (slack) TakesSlack() bool { return true }
+
+func (slack) Active() bool { return false }
+
+func (slack) SetActive(bool) {}
+
+func (slack) Disable() {}
+
+func (slack) Enable() {}
+
+func (slack) Disabled() bool { return false }
+
+func (slack) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+
+func (slack) View(s Style, _ Widget, _ bool) string {
+	n := 1
+	if s.fit && s.Width > 0 {
+		n = s.Width
+	}
+	h := 1
+	if s.fit && s.Height > 1 {
+		h = s.Height
+	}
+	if h == 1 {
+		return s.shade(n)
+	}
+	return s.veil(n, h)
 }

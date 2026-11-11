@@ -9,7 +9,8 @@
 // Tab va à l'onglet de droite. Le parcours reprend au début.
 // La barre n'est pas un focus.
 // Le contour des onglets et du panneau reste l'or du repos.
-// L'objet de droite prend le vide horizontal. La hauteur rejoint l'objet d'en dessous.
+// L'objet de droite prend le vide horizontal. RowEnd le laisse à gauche.
+// La hauteur rejoint l'objet d'en dessous.
 package framework
 
 import tea "charm.land/bubbletea/v2"
@@ -28,6 +29,12 @@ type Widget interface {
 
 // Reloader réinitialise une zone. L'action Reload s'en sert.
 type Reloader interface{ Reload() }
+
+// slacker prend le vide horizontal de sa rangée. RowEnd en pose un à gauche.
+type slacker interface{ TakesSlack() bool }
+
+// columnFields envoie haut et bas d'un champ au champ voisin.
+type columnFields interface{ ColumnFields() bool }
 
 // gate est le drapeau partagé : inactif, la case est sautée.
 type gate struct {

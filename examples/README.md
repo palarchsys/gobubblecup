@@ -16,7 +16,7 @@ done
 ./bin/hello
 ```
 
-Ctrl+C quits and stops the scripts that are running. In a field, `q` is a letter. Launch clears the terminal. On exit, the previous screen comes back.
+Ctrl+C quits and stops the scripts that are running. Ctrl+V pastes into the focused field when it can take text. In a field, `q` is a letter. Launch clears the terminal. On exit, the previous screen comes back.
 
 Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`). The screen keeps that format. It does not extend to the bottom of the terminal.
 

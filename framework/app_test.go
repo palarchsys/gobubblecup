@@ -830,7 +830,7 @@ func TestQuitter(t *testing.T) {
 		t.Fatal("ctrl+c")
 	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Fatal("ctrl+c")
+		t.Fatal("ctrl+c quitte")
 	}
 	for _, rt := range []*runtime{un, deux} {
 		if rt.Status() != "terminated" {

@@ -49,6 +49,15 @@ func (t *textInput) SetText(text string) {
 	t.caret = len(t.value)
 }
 
+// SetTitle remplace le libellé. La saisie reste.
+func (t *textInput) SetTitle(title string) {
+	if t == nil || t.title == title {
+		return
+	}
+	t.title = title
+	notify()
+}
+
 // Paste insère le texte du presse-papier. Les chiffres seuls passent dans un champ nombre.
 func (t *textInput) Paste(text string) {
 	if t == nil || !t.editable {
