@@ -1,5 +1,6 @@
 // A screen described with Frame, Flags, Form, Status, Keys, and Bind.
-// Labels come from locale/<lang>/label.txt. Flags come from flags/<code>.svg.
+// Labels come from locale/<lang>/label.txt. Legend phrases come from locale/<lang>/screen.txt.
+// Flags come from flags/<code>.svg.
 //
 // From the module root: go run ./examples/screen
 package main
@@ -7,12 +8,16 @@ package main
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/palarchsys/gobubblecup/framework"
 )
 
 func main() {
 	labels, err := framework.Labels("examples/screen/locale")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	phrases, err := framework.Catalog("examples/screen/locale", "screen.txt")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -33,8 +38,12 @@ func main() {
 	)
 	form.Use(labels, order[lang])
 	status := framework.Status("Status : ", order[lang])
-	keyTitle, keyLeft, keyRight := keyLegend(order[lang])
-	legend := framework.Keys(keyTitle, keyLeft, keyRight)
+	leftKeys := []string{"↑", "↓", "←", "→"}
+	leftIDs := []string{"UP", "DOWN", "LEFT", "RIGHT"}
+	rightKeys := []string{"ctrl+l", "ctrl+c", "ctrl+q"}
+	rightIDs := []string{"LANG", "PASTE", "QUIT"}
+	legend := framework.Keys("", nil, nil)
+	legend.Use(phrases, order[lang], "TITLE", leftKeys, leftIDs, rightKeys, rightIDs)
 	grid := framework.Grid(
 		framework.Row(framework.Frame("gobubblecup", framework.AlignCenter, "")),
 		framework.Row(flags),
@@ -49,47 +58,24 @@ func main() {
 		Quit:       "ctrl+q",
 		Paste:      "ctrl+c",
 		HideLegend: true,
-		On: map[string]func() tea.Cmd{
-			"ctrl+l": func() tea.Cmd {
+		On: map[string]func() framework.Cmd{
+			"ctrl+l": func() framework.Cmd {
 				lang = (lang + 1) % len(order)
 				code := order[lang]
 				flags.Select(code)
 				form.Use(labels, code)
 				form.SetTitle(titles[code])
 				status.SetText(code)
-				title, left, right := keyLegend(code)
-				legend.SetTitle(title)
-				legend.SetPairs(left, right)
+				legend.Use(phrases, code, "TITLE", leftKeys, leftIDs, rightKeys, rightIDs)
 				return nil
 			},
 		},
 	})
-	if _, err := tea.NewProgram(app).Run(); err != nil {
+	if err := app.Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println("language:", order[lang])
 	fmt.Println("flag:", flags.Selected())
 	fmt.Println("values:", form.Values())
-}
-
-func keyLegend(lang string) (string, [][2]string, [][2]string) {
-	switch lang {
-	case "fr":
-		return "Touches",
-			[][2]string{{"↑", "Champ précédent"}, {"↓", "Champ suivant"}, {"←", "Curseur à gauche"}, {"→", "Curseur à droite"}},
-			[][2]string{{"ctrl+l", "Langue"}, {"ctrl+c", "Coller"}, {"ctrl+q", "Quitter"}}
-	case "de":
-		return "Tasten",
-			[][2]string{{"↑", "Vorheriges Feld"}, {"↓", "Nächstes Feld"}, {"←", "Cursor links"}, {"→", "Cursor rechts"}},
-			[][2]string{{"ctrl+l", "Sprache"}, {"ctrl+c", "Einfügen"}, {"ctrl+q", "Beenden"}}
-	case "es":
-		return "Teclas",
-			[][2]string{{"↑", "Campo anterior"}, {"↓", "Campo siguiente"}, {"←", "Cursor a la izquierda"}, {"→", "Cursor a la derecha"}},
-			[][2]string{{"ctrl+l", "Idioma"}, {"ctrl+c", "Pegar"}, {"ctrl+q", "Salir"}}
-	default:
-		return "Keys",
-			[][2]string{{"↑", "Previous field"}, {"↓", "Next field"}, {"←", "Cursor left"}, {"→", "Cursor right"}},
-			[][2]string{{"ctrl+l", "Language"}, {"ctrl+c", "Paste"}, {"ctrl+q", "Quit"}}
-	}
 }

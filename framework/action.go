@@ -10,7 +10,7 @@ import (
 
 // Action est déclenchée par un bouton.
 // Chaque type ne porte que ses propres attributs.
-type Action interface{ Act() tea.Cmd }
+type Action interface{ Act() Cmd }
 
 // Sink reçoit un texte. Un champ et une zone de texte le font.
 type Sink interface{ SetText(string) }
@@ -31,7 +31,7 @@ type ExecDone struct {
 	Err    error
 }
 
-func (e Exec) Act() tea.Cmd {
+func (e Exec) Act() Cmd {
 	script := strings.TrimSpace(e.Script)
 	if script == "" {
 		panic("framework: exec incomplet")
@@ -52,7 +52,7 @@ func (e Exec) Act() tea.Cmd {
 // Reload réinitialise une zone.
 type Reload struct{ Target Reloader }
 
-func (r Reload) Act() tea.Cmd {
+func (r Reload) Act() Cmd {
 	if r.Target == nil {
 		panic("framework: rechargement incomplet")
 	}
@@ -63,7 +63,7 @@ func (r Reload) Act() tea.Cmd {
 // Call est une action libre, pour le code de l'application.
 type Call struct{ Run func() }
 
-func (c Call) Act() tea.Cmd {
+func (c Call) Act() Cmd {
 	if c.Run == nil {
 		panic("framework: appel incomplet")
 	}
@@ -77,7 +77,7 @@ type ReadFile struct {
 	Memory Store
 }
 
-func (r ReadFile) Act() tea.Cmd {
+func (r ReadFile) Act() Cmd {
 	if strings.TrimSpace(r.Path) == "" || r.Memory == nil {
 		panic("framework: lecture de fichier incomplète")
 	}
@@ -96,7 +96,7 @@ type WriteFile struct {
 	Memory Store
 }
 
-func (w WriteFile) Act() tea.Cmd {
+func (w WriteFile) Act() Cmd {
 	if strings.TrimSpace(w.Path) == "" || w.Memory == nil {
 		panic("framework: écriture de fichier incomplète")
 	}

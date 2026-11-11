@@ -1,0 +1,25 @@
+# Phrases de la légende.
+
+[TITLE]
+Touches
+
+[UP]
+Champ précédent
+
+[DOWN]
+Champ suivant
+
+[LEFT]
+Curseur à gauche
+
+[RIGHT]
+Curseur à droite
+
+[LANG]
+Langue
+
+[PASTE]
+Coller
+
+[QUIT]
+Quitter

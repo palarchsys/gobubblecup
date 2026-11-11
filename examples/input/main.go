@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/palarchsys/gobubblecup/framework"
 )
 
@@ -39,7 +38,7 @@ func main() {
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
 	app := framework.New(style, grid)
-	if _, err := tea.NewProgram(app).Run(); err != nil {
+	if err := app.Run(); err != nil {
 		fmt.Println(err)
 		return
 	}

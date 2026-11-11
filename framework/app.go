@@ -14,8 +14,14 @@ type KeyMap struct {
 	Quit       string
 	Paste      string
 	HideLegend bool
-	On         map[string]func() tea.Cmd
+	On         map[string]func() Cmd
 }
+
+// Cmd est la commande du cadre. Une fonction qui rend nil reste acceptée.
+type Cmd = tea.Cmd
+
+// Quit termine le programme.
+func Quit() Cmd { return tea.Quit }
 
 // App branche la grille sur Bubble Tea.
 // La grille est un pointeur : les changements survivent à la copie reçue par Update.
@@ -65,6 +71,12 @@ func (a App) Bind(keys KeyMap) App {
 	a.keys = keys
 	a.bound = true
 	return a
+}
+
+// Run lance le programme et rend l'erreur. L'écran alternatif reste celui de View.
+func (a App) Run() error {
+	_, err := tea.NewProgram(a).Run()
+	return err
 }
 
 func (a App) quitKey() string {

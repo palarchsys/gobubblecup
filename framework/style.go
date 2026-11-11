@@ -106,6 +106,15 @@ func DefaultStyle() Style {
 	}
 }
 
+// WithMeasure rend une copie. Largeur, padding horizontal et marge sont ceux demandés.
+// Les encres, le rayon, la marque et la hauteur restent ceux du receveur.
+func (s Style) WithMeasure(width, padX, margin int) Style {
+	s.Width = width
+	s.PadX = padX
+	s.Margin = margin
+	return s
+}
+
 // placed fixe le cadre d'un objet pour un dessin. height à zéro reste naturel.
 // La largeur d'origine est gardée : une mesure imbriquée ne la confond pas avec le cadre imposé.
 func (s Style) placed(width, height int) Style {

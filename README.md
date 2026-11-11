@@ -4,7 +4,7 @@ gobubblecup est un framework Go pour écrire une interface en terminal. Vous dé
 
 Le module publié est `github.com/palarchsys/gobubblecup`. Le paquet à importer est `framework`. La version de ce guide est `v1.1.0-beta` (étiquette `beta-1.1`).
 
-Vous ne choisissez pas les couleurs, les marges ni les cadres. `DefaultStyle` les fixe. Vos objets ne portent que leurs données.
+Vous ne choisissez pas les couleurs, les marges ni les cadres. `DefaultStyle` les fixe. Vos objets ne portent que leurs données. Un parcours d'installation est un titre, des puces et des étapes : `examples/page`.
 
 ## Prérequis
 
@@ -47,7 +47,6 @@ package main
 import (
     "fmt"
 
-    tea "charm.land/bubbletea/v2"
     "github.com/palarchsys/gobubblecup/framework"
 )
 
@@ -74,7 +73,7 @@ func main() {
     style := framework.DefaultStyle()
     style.Height = style.Width * 3 / 4
     app := framework.New(style, grid)
-    if _, err := tea.NewProgram(app).Run(); err != nil {
+    if err := app.Run(); err != nil {
         fmt.Println(err)
         return
     }
@@ -83,7 +82,7 @@ func main() {
 }
 ```
 
-`Row` aligne des objets et donne le vide horizontal au dernier. `RowEnd` le donne à gauche : les autres objets gardent leur largeur. `examples/lists` pousse ainsi ses boutons à droite. `Grid` empile ces lignes. `New` construit l'application. `tea.NewProgram` l'affiche et bloque jusqu'à la sortie.
+`Row` aligne des objets et donne le vide horizontal au dernier. `RowEnd` le donne à gauche : les autres objets gardent leur largeur. `examples/lists` pousse ainsi ses boutons à droite. `Grid` empile ces lignes. `New` construit l'application. `Run` l'affiche et bloque jusqu'à la sortie.
 
 Une légende des touches est ajoutée sous la grille. Vous n'avez pas à la créer.
 
@@ -125,7 +124,7 @@ go build -o hello ./examples/hello
 
 `go test` vérifie le framework. `go build -o hello ./examples/hello` produit le même exemple que ci-dessus. Ce dépôt n'a pas de `package main` à la racine : la compilation d'une application se fait dans votre module, ou dans `examples/hello`.
 
-Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md). `examples/screen` montre un écran décrit avec les appels de la section [Décrire un écran](#décrire-un-écran). Lancez-le depuis la racine du module : `go run ./examples/screen`.
+Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md). `examples/page` est le parcours d'installation de la section [Page](#page). `examples/screen` décrit un écran avec les appels de la section [Décrire un écran](#décrire-un-écran). Lancez-les depuis la racine du module : `go run ./examples/page`.
 
 ### Autre système
 
@@ -145,7 +144,7 @@ Le focus parcourt les zones actives de la grille affichée, de haut-gauche vers 
 | Touche | Effet |
 | --- | --- |
 | ← → | Zone précédente ou suivante. Après la dernière, retour à la première. |
-| ↑ ↓ | Item précédent ou suivant dans la liste qui a le focus. Bornés au premier et au dernier. |
+| ↑ ↓ | Item précédent ou suivant dans la liste ou le choix qui a le focus. Bornés au premier et au dernier. |
 | Entrée | Choisit ou décoche l'item focalisé, ou déclenche le bouton. Dans un champ d'une ligne, elle ne change pas le focus. |
 | Échap | Ferme une zone de texte ouverte. |
 | Tab | Onglet suivant. Après le dernier, retour au premier. Un seul onglet : la touche ne fait rien. |
@@ -155,7 +154,7 @@ Le focus parcourt les zones actives de la grille affichée, de haut-gauche vers 
 | Ctrl+V | Colle le presse-papier dans le champ ou la zone éditable qui a le focus. |
 | Ctrl+C | Quitte, y compris dans un champ, et arrête les scripts en cours. |
 
-Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son item. Entrée confirme cet item. La liste se souvient de la ligne et la retrouve quand le focus revient. Au départ, c'est la première ligne. Cette ligne garde un fond `#37373d`, même quand la liste n'a plus le focus. Il n'y a pas de marqueur `›`. Un `✓` marque une ligne choisie.
+Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son item. Entrée confirme cet item. La liste se souvient de la ligne et la retrouve quand le focus revient. Au départ, c'est la première ligne. Cette ligne garde un fond `#37373d`, même quand la liste n'a plus le focus. Il n'y a pas de marqueur `›`. Un `✓` marque une ligne choisie. Un `Choice` suit la même borne : haut et bas déplacent sa ligne, gauche et droite quittent l'objet.
 
 Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Dès que le champ a le focus, le rectangle recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ. Dans un formulaire, ils passent au champ voisin et bouclent. Gauche et droite y restent dans la saisie.
 
@@ -178,7 +177,9 @@ Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. E
 
 Le contour au focus est l'or du repos éclairci de 30 % vers le blanc, sans gras. Une zone ouverte utilise le même trait. Le gris `#6b6b6b` est réservé au mot `pending` et aux objets désactivés.
 
-Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. Sans `Height`, une ligne a la hauteur de son plus grand objet. Une fenêtre connue ne fait alors que réduire ce qui dépasse : le contenu court ne descend pas jusqu'en bas. Une `Height` positive est le format de l'écran, légende comprise. Les listes et les zones se partagent ce qui reste sous la légende, sans aller plus bas que ce format. Deux listes d'une même ligne se partagent cette hauteur. La liste n'en montre qu'une fenêtre : le titre reste, et le curseur aussi. La zone garde au moins son nombre de lignes, et prend la hauteur encore libre dans le format. Les démos posent `Height` aux trois quarts de la largeur par défaut.
+Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. Sans `Height`, une ligne a la hauteur de son plus grand objet. Une fenêtre connue ne fait alors que réduire ce qui dépasse : le contenu court ne descend pas jusqu'en bas. Une `Height` positive est le format de l'écran, légende comprise. Les listes et les zones se partagent ce qui reste sous la légende, sans aller plus bas que ce format. Deux listes d'une même ligne se partagent cette hauteur. La liste n'en montre qu'une fenêtre : le titre reste, et le curseur aussi. La zone garde au moins son nombre de lignes, et prend la hauteur encore libre dans le format. Les démos posent `Height` aux trois quarts de la largeur du style. `examples/page` passe d'abord par `WithMeasure(48, 2, 0)`.
+
+`WithMeasure(largeur, padX, marge)` rend une copie. Seuls ces trois champs changent. Les encres, le rayon, la marque et la hauteur restent ceux du style reçu. Les nombres viennent du programme.
 
 `framework.Color("#ffee00")` produit une couleur pour une pastille. Un status de slot s'écrit tel quel : `pending`, `success`, `warning` ou `error`. Le thème choisit la teinte. Le thème des cadres ne se change pas objet par objet.
 
@@ -289,6 +290,8 @@ compte.Use(labels, "fr")
 
 `Labels` lit `dossier/en/label.txt`, puis `fr`, `de` et `es`. Une clé `[LABEL_NOM]` est stockée sous `NOM`. Un fichier illisible ou une ligne hors clé renvoie une erreur. Une clé que l'écran ne demande pas peut manquer. `Use` pose les libellés d'une langue. Une langue absente, ou un nom de champ absent, arrête le programme.
 
+`Catalog(dossier, fichier)` lit le même quartet, `dossier/<langue>/fichier`. Une clé `[NOM]` est stockée telle quelle. Une ligne vide ou qui commence par `#` est ignorée. Une clé absente n'est pas une erreur. Une clé vide, une ligne hors clé ou un fichier illisible renvoie une erreur. Les libellés de champs restent sur `Labels`.
+
 `SetVerticalFields(true)` sur une grille de champs isolés fait le même parcours, sans passer par `Form`. Sans cet appel, haut et bas restent dans le champ.
 
 ### Zone de texte
@@ -314,7 +317,7 @@ framework.Button("Ajouter", framework.Call{Run: func() {
 }})
 ```
 
-Entrée déclenche l'action. Le bouton ne s'ouvre pas.
+Entrée déclenche l'action. Le bouton ne s'ouvre pas. `Fit` serre le cadre sur le mot : bordures, padding, puis les runes. Sans `Fit`, le bouton remplit la largeur de la colonne, y compris le vide de la dernière case. `SetLabel` remplace le mot. L'ajustement et l'action restent.
 
 | Action | Rôle |
 | --- | --- |
@@ -453,6 +456,8 @@ Avec `Loop: true`, `Timer` est obligatoire. `0` vaut 100 ms. À la fin de chaque
 
 Chaque `Runtime(...)` est indépendant. La regex par défaut est `(success|warning|error)`. Elle s'applique à la sortie du script. Le premier groupe, ou le texte entier, doit être l'un de ces trois mots. Sinon le status du slot est `error`. Une regex invalide arrête le programme à la construction.
 
+`Script(dir, id, label, chemin, args, env)` prépare un seul bash et appelle `Init`. `env` est une fonction relue au départ. Une fonction nulle n'ajoute pas de clés. La classification est `StatusLine` : le mot `success`, `warning` ou `error` occupe toute une ligne. `Report` dessine l'exécution, `Host` la sonde, `Facts` l'hôte. `Start` et `Stop` restent ceux du runtime. `examples/page` lance ainsi `examples/scripts/host.sh` et `examples/scripts/apply.sh`.
+
 Un plantage dans le conteneur termine le cycle et ajoute le texte au journal `Log()`.
 
 Les scripts sont des fichiers à côté du binaire lancé, pas des fichiers compilés dans le programme. Pour les embarquer, copiez-les au déploiement, ou placez-les dans le dossier de lancement.
@@ -515,7 +520,60 @@ fenetre.Use(page, autre)
 app := framework.NewWindow(framework.DefaultStyle(), fenetre)
 ```
 
-Une seule grille est visible. Les boutons font le tour. À l'arrivée sur une grille, le focus se place sur son premier élément. La compilation reste `go build -o mon-tui .` : `NewWindow` remplace `New` dans le même `main`.
+Une seule grille est visible. Les boutons font le tour. À l'arrivée sur une grille, le focus se place sur son premier élément. La compilation reste `go build -o mon-tui .` : `NewWindow` remplace `New` dans le même `main`. `examples/windows` utilise `Use`. Le parcours qui pose `Suite` et `Retour` est `Walk`, dans `examples/page`.
+
+## Page
+
+`examples/page` est un parcours d'installation. Le titre et les puces sont communs. Chaque étape est un cadre. `Suite` avance, `Retour` recule. Ces deux mots restent en français, comme les phrases de la sonde. Lancez-le depuis la racine du module, pour que `examples/scripts/host.sh` et `examples/scripts/apply.sh` soient trouvés.
+
+```go
+lang := framework.Choice("Language",
+    framework.ListItem("en", "English"),
+    framework.ListItem("fr", "Français"),
+)
+name := framework.TextInput("Name", framework.InputText, 24, false)
+host := framework.Script("", "host", "Host", "examples/scripts/host.sh", nil, nil)
+apply := framework.Script("", "apply", "Apply", "examples/scripts/apply.sh", nil, func() map[string]string {
+    return map[string]string{
+        "LANGUAGE": lang.Value(),
+        "NAME":     name.Value(),
+    }
+})
+facts := framework.Facts(
+    framework.Fact{Label: "Language", Text: lang.Label},
+    framework.Fact{Label: "Name", Text: name.Value},
+)
+win := framework.Window()
+win.Walk("gobubblecup", facts,
+    framework.Stage{Legend: "Language", Kids: []framework.Widget{lang}},
+    framework.Stage{Legend: "Name", Kids: []framework.Widget{name}},
+    framework.Stage{Legend: "Host", Kids: []framework.Widget{
+        host.Host(),
+        framework.Gap(),
+        framework.Bullet("Run", host.Start()),
+    }},
+    framework.Stage{Legend: "Apply", Kids: []framework.Widget{
+        apply.Report(),
+        framework.Gap(),
+        framework.Bullet("Run", apply.Start()),
+    }},
+)
+style := framework.DefaultStyle().WithMeasure(48, 2, 0)
+style.Height = style.Width * 3 / 4
+app := framework.NewWindow(style, win)
+```
+
+`Walk` pose une page par `Stage`. La première étape n'a pas `Retour`. La dernière n'a pas `Suite`. `Page(titre, puces, corps)` fait le même empilement pour une seule grille : le titre, une ligne vide, les puces, une ligne vide, puis le corps. Des puces `nil` sautent ce bloc. Un corps `nil` arrête le programme.
+
+`Facts` aligne chaque libellé et une valeur relue à chaque dessin. `lang.Label` et `name.Value` sont ces fonctions. Une fonction nulle ou une chaîne vide affiche `—`. `Gap` est une ligne vide. `Note` est une puce bleue sans focus. `SetText` remplace sa phrase. `Bullet` prend le focus. Entrée lance l'action. Le mot focalisé est en or gras. `SetLabel` garde l'action. `Moves` ajoute `Suite` et `Retour` à la fin d'une liste d'objets. Une action nulle est omise. `Walk` appelle `Moves`.
+
+`Section` encadre ses enfants. `Sheet` les empile sans cadre. Une section vide ou un enfant `nil` arrête le programme. `SetLegend` remplace le mot du trait et garde les enfants. Le cadre reprend le rayon du style.
+
+`Choice` est un arbre. La première ligne est courante et porte `✓`. Les autres portent `•`. Haut et bas la déplacent, sans boucler. `Value` est l'id. `Label` est le texte, ou `—`. `Bind` publie cet id tout de suite, sous `data.value`. Le même id n'est pas réécrit. Une mémoire ou une clé vide arrête le programme. Entrée republie. Gauche et droite quittent l'objet. `examples/page` relit `Value` au départ du script, sans `Bind`.
+
+`Step(titre, lignes)` dessine le même arbre à partir d'une fonction relue à chaque dessin. Une fonction nulle ou vide montre `En attente`. `SetTitle` garde les lignes. `Info`, `OK`, `Warn` et `Bad` posent `•`, `✓`, `⚠` et `✗`. `Host` et `Report` sont des `Step` : le titre est le chemin du script. `HostFacts`, ou `Facts` sur le script, aligne Hôte, OS et Installation. Ubuntu, `présente`, `absente`, `En cours`, `En attente`, `Terminé`, `Avertissement` et `Refusé` viennent du cadre. `Report` ne répète pas les mots `success`, `warning` et `error`. `host.sh` écrit `hostname`, `os`, `version`, `install`, puis `success`. `apply.sh` écrit les deux lignes relues dans l'environnement, puis `success`.
+
+`FindRoot(env, install, dossier, script)` rend une racine qui contient `script/<nom>`. La variable d'environnement gagne quand elle est posée, puis le dossier d'installation, puis le dépôt à côté d'un répertoire `go/`. `RequireRoot` refuse un programme qui n'est pas root. `LoadRules` lit un document `{"variables":[...]}`. `Fail` rend le premier nom en échec. `equal` dit que deux champs diffèrent. Le cadre ne choisit pas la phrase d'alerte. `Handoff(dir, bin, argv...)` efface l'écran, se place dans `dir`, puis remplace le processus. Un programme vide rend une erreur avant d'effacer.
 
 ## Fichier
 
@@ -588,6 +646,8 @@ drapeaux.Selected()
 
 `Flags` lit `dossier/<code>.svg` dans l'ordre donné et aligne les glyphes à droite. Au départ, tous sont en couleur. `Select` colore ce code et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré, ou `""` tant qu'aucun n'est choisi. Les drapeaux ne prennent pas le focus.
 
+`Buttons(labels...)` aligne un mot encadré par label. Le premier est en couleur, les autres en gris. La rangée ne prend pas le focus. `Select` colore un label. Un label absent ne change rien. `Selected` rend le label coloré. `Next` avance et boucle. `SetLabels` remplace les mots et garde l'index. Une longueur différente arrête le programme. Le vide d'une rangée plus large va à gauche. `Row` suffit. On garde `Button` quand Entrée lance une action, et `Flags` quand le glyphe est un SVG.
+
 ## Décrire un écran
 
 Ces appels décrivent une ligne, un formulaire, des drapeaux et une légende. Le programme de `examples/screen` les assemble. Il se lance depuis la racine du module, pour que `examples/screen/locale` et `examples/screen/flags` soient trouvés. Un programme qui n'appelle pas `Bind` garde Ctrl+C, Ctrl+V et la légende du bas.
@@ -604,19 +664,22 @@ app := framework.New(style, grille).Bind(framework.KeyMap{
     Quit:       "ctrl+q",
     Paste:      "ctrl+c",
     HideLegend: true,
-    On: map[string]func() tea.Cmd{
-        "ctrl+l": func() tea.Cmd { return nil },
+    On: map[string]func() framework.Cmd{
+        "ctrl+l": func() framework.Cmd { return nil },
     },
 })
+if err := app.Run(); err != nil {
+    return
+}
 ```
 
-`Bind` remplace l'application : gardez sa valeur. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une commande. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille, même si la fonction ne renvoie rien. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien.
+`Bind` remplace l'application : gardez sa valeur. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une `Cmd`. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille, même si la fonction ne renvoie rien. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien. `Quit()` termine le programme. `Run` lance l'écran et rend l'erreur. Un programme qui règle lui-même Bubble Tea ne passe pas par `Run`.
 
 `Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus. `SetText` remplace le texte : l'alignement et le titre du trait restent. `SetTitle` remplace le mot du trait. Une chaîne vide laisse le trait nu. Le texte et l'alignement restent.
 
 `Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel, espaces compris. `SetText` ne remplace que la valeur.
 
-`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus. `SetPairs` remplace les deux colonnes et garde le titre. L'ordre des paires est l'ordre affiché. Une colonne vide reste valide. Les listes sont copiées. `SetTitle` remplace le mot du trait et garde les colonnes. `examples/screen` appelle ces deux poseurs quand la langue change. `HideLegend` continue de masquer la légende stock.
+`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus. `SetPairs` remplace les deux colonnes et garde le titre. L'ordre des paires est l'ordre affiché. Une colonne vide reste valide. Les listes sont copiées. `SetTitle` remplace le mot du trait et garde les colonnes. `Use(textes, langue, cléDuTitre, touchesGauche, idGauche, touchesDroite, idDroite)` pose le titre et les colonnes depuis un `Catalog`. Une langue absente, un identifiant absent ou deux longueurs différentes arrêtent le programme. `examples/screen` appelle `Use` quand la langue change. Les touches affichées viennent du programme. `HideLegend` continue de masquer la légende stock.
 
 `SetLegend` sur une catégorie remplace le titre posé sur son trait, comme `SetTitle` le fait pour un formulaire ou un champ isolé.
 

@@ -9,6 +9,33 @@ type window struct {
 
 func Window() *window { return &window{} }
 
+// Stage est une page du parcours. Legend est le mot du cadre.
+type Stage struct {
+	Legend string
+	Kids   []Widget
+}
+
+// Walk pose une page par étape. Le titre et les puces sont communs.
+// Suite avance, Retour recule. La première étape n'a pas Retour, la dernière n'a pas Suite.
+func (w *window) Walk(title string, facts Widget, stages ...Stage) {
+	if w == nil || len(stages) == 0 {
+		panic("framework: fenêtre vide")
+	}
+	pages := make([]*grid, 0, len(stages))
+	for i, stage := range stages {
+		var next, prev Action
+		if i+1 < len(stages) {
+			next = w.Next()
+		}
+		if i > 0 {
+			prev = w.Prev()
+		}
+		body := Section(stage.Legend, Moves(next, prev, stage.Kids...)...)
+		pages = append(pages, Grid(Row(Page(title, facts, body))))
+	}
+	w.Use(pages...)
+}
+
 // Use fixe les grilles. La première est affichée.
 func (w *window) Use(pages ...*grid) {
 	if w == nil || len(pages) == 0 {

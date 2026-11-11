@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/palarchsys/gobubblecup/framework"
 )
 
@@ -27,7 +26,7 @@ func main() {
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
 	app := framework.New(style, grid)
-	if _, err := tea.NewProgram(app).Run(); err != nil {
+	if err := app.Run(); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -40,7 +39,7 @@ type fieldExec struct {
 	into framework.Sink
 }
 
-func (e fieldExec) Act() tea.Cmd {
+func (e fieldExec) Act() framework.Cmd {
 	return framework.Exec{
 		Script: "bash",
 		Args:   []string{"examples/scripts/echo.sh", e.read()},

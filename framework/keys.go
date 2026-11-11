@@ -34,6 +34,44 @@ func (k *keyLegend) SetPairs(left, right [][2]string) {
 	notify()
 }
 
+// Use pose le titre et les deux colonnes depuis un catalogue.
+// Les touches affichées viennent de l'appelant.
+// Une langue absente, un identifiant absent ou deux longueurs différentes arrêtent le programme.
+func (k *keyLegend) Use(texts map[string]map[string]string, lang, titleKey string, leftKeys, leftIDs, rightKeys, rightIDs []string) {
+	if k == nil {
+		return
+	}
+	table, ok := texts[lang]
+	if !ok {
+		panic("framework: langue " + lang)
+	}
+	title, ok := table[titleKey]
+	if !ok {
+		panic("framework: identifiant " + titleKey)
+	}
+	left := pairsFrom(table, leftKeys, leftIDs)
+	right := pairsFrom(table, rightKeys, rightIDs)
+	k.title = title
+	k.left = left
+	k.right = right
+	notify()
+}
+
+func pairsFrom(table map[string]string, keys, ids []string) [][2]string {
+	if len(keys) != len(ids) {
+		panic("framework: paires")
+	}
+	out := make([][2]string, len(keys))
+	for i := range keys {
+		text, ok := table[ids[i]]
+		if !ok {
+			panic("framework: identifiant " + ids[i])
+		}
+		out[i] = [2]string{keys[i], text}
+	}
+	return out
+}
+
 // SetTitle remplace le mot posé sur le trait. Les colonnes restent.
 func (k *keyLegend) SetTitle(title string) {
 	if k == nil || k.title == title {

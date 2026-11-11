@@ -1,0 +1,25 @@
+# Legende.
+
+[TITLE]
+Tasten
+
+[UP]
+Vorheriges Feld
+
+[DOWN]
+Nächstes Feld
+
+[LEFT]
+Cursor links
+
+[RIGHT]
+Cursor rechts
+
+[LANG]
+Sprache
+
+[PASTE]
+Einfügen
+
+[QUIT]
+Beenden

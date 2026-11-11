@@ -1,0 +1,25 @@
+# Leyenda.
+
+[TITLE]
+Teclas
+
+[UP]
+Campo anterior
+
+[DOWN]
+Campo siguiente
+
+[LEFT]
+Cursor a la izquierda
+
+[RIGHT]
+Cursor a la derecha
+
+[LANG]
+Idioma
+
+[PASTE]
+Pegar
+
+[QUIT]
+Salir

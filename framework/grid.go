@@ -225,6 +225,10 @@ func (g *grid) Key(key string) tea.Cmd {
 		g.inside = inside
 		return cmd
 	}
+	if key == "up" || key == "down" {
+		_, cmd := w.Handle(false, key)
+		return cmd
+	}
 	g.move(key)
 	return nil
 }

@@ -430,6 +430,213 @@ func TestFrameAndKeysReplaceContent(t *testing.T) {
 	}
 }
 
+func TestButtonFitKeepsActionAndFocus(t *testing.T) {
+	var blank *button
+	blank.Fit()
+	blank.SetLabel("x")
+
+	wide := DefaultStyle()
+	wide.Width = 40
+	full := Button("OK", nil)
+	if lineWidth(full.View(wide, nil, false)) < 30 {
+		t.Fatal("colonne")
+	}
+	hit := 0
+	btn := Button("OK", Call{Run: func() { hit++ }})
+	btn.Fit()
+	hug := btn.View(wide, nil, false)
+	if lineWidth(hug) >= 30 || lineWidth(hug) != 6 || !strings.Contains(plain(hug), "OK") {
+		t.Fatalf("serré %d", lineWidth(hug))
+	}
+	btn.SetLabel("Go")
+	if !strings.Contains(plain(btn.View(wide, nil, false)), "Go") || strings.Contains(plain(btn.View(wide, nil, false)), "OK") {
+		t.Fatal("label")
+	}
+	btn.Handle(false, "enter")
+	if hit != 1 {
+		t.Fatal(hit)
+	}
+
+	s := DefaultStyle()
+	s.Width = 40
+	rows := NewGrid(NewRow(NewTitle("Liltress")), NewRow(btn)).layout(s, 0, false)
+	if lineWidth(rows[1]) >= lineWidth(rows[0]) {
+		t.Fatalf("étiré %d %d", lineWidth(rows[1]), lineWidth(rows[0]))
+	}
+	pushed := NewGrid(NewRow(NewTitle("Liltress")), RowEnd(btn)).layout(s, 0, false)
+	lead := len(plain(pushed[1])) - len(strings.TrimLeft(plain(pushed[1]), " "))
+	if lineWidth(pushed[1]) != lineWidth(pushed[0]) || lead < 8 {
+		t.Fatalf("gauche %d\n%s", lead, plain(pushed[1]))
+	}
+
+	field := NewTextInput("a", InputText, 0, false)
+	app := New(DefaultStyle(), NewGrid(NewRow(field), NewRow(btn)))
+	app = press(t, app, textKey("z"))
+	btn.SetLabel("OK")
+	btn.Fit()
+	if app.grid.Focused() != field || field.Value() != "z" {
+		t.Fatalf("focus %v %q", app.grid.Focused(), field.Value())
+	}
+}
+
+func TestButtonsChoice(t *testing.T) {
+	var bare *buttonRow
+	bare.Select("FR")
+	if bare.Selected() != "" || bare.Next() != "" {
+		t.Fatal("nil")
+	}
+	row := Buttons("FR", "DE", "ES")
+	if row.Selected() != "FR" || row.Active() || row.buttons[0].Active() || row.buttons[1].Active() {
+		t.Fatal("anneau")
+	}
+	if w := lineWidth(row.View(DefaultStyle(), nil, false)); w != 6+1+6+1+6 {
+		t.Fatalf("jointure %d", w)
+	}
+	view := row.View(DefaultStyle(), nil, false)
+	if !strings.Contains(view, "229;182;132") || !strings.Contains(view, "107;107;107") || strings.Contains(view, "236;203;168") {
+		t.Fatal("encres")
+	}
+	row.Select("nope")
+	if row.Selected() != "FR" {
+		t.Fatal("absent")
+	}
+	if row.Next() != "DE" || row.Next() != "ES" || row.Next() != "FR" {
+		t.Fatal(row.Selected())
+	}
+	labels := []string{"EN", "DE", "ES"}
+	row.SetLabels(labels)
+	labels[0] = "changé"
+	shown := plain(row.View(DefaultStyle(), nil, false))
+	if row.Selected() != "EN" || strings.Contains(shown, "changé") || !strings.Contains(shown, "EN") {
+		t.Fatal(shown)
+	}
+	panicked := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		row.SetLabels([]string{"EN"})
+	}()
+	if !panicked {
+		t.Fatal("longueur")
+	}
+
+	s := DefaultStyle()
+	s.Width = 40
+	laid := NewGrid(NewRow(NewTitle("Liltress")), NewRow(row)).layout(s, 0, false)
+	body := plain(laid[1])
+	lead := len(body) - len(strings.TrimLeft(body, " "))
+	if lineWidth(laid[1]) != lineWidth(laid[0]) || lead < 8 {
+		t.Fatalf("gauche %d\n%s", lead, body)
+	}
+	field := NewTextInput("a", InputText, 0, false)
+	app := New(s, NewGrid(NewRow(field), NewRow(row)))
+	app = press(t, app, textKey("z"))
+	row.Next()
+	if app.grid.Focused() != field || field.Value() != "z" {
+		t.Fatalf("focus %v %q", app.grid.Focused(), field.Value())
+	}
+}
+
+func TestCatalogAndKeysUse(t *testing.T) {
+	dir := t.TempDir()
+	body := "# cartouche\n\n[TITLE]\nTouches\n[UP]\nHaut\n"
+	for _, lang := range []string{"en", "fr", "de", "es"} {
+		writeText(t, dir, lang, "screen.txt", body)
+	}
+	got, err := Catalog(dir, "screen.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["fr"]["TITLE"] != "Touches" || got["fr"]["UP"] != "Haut" {
+		t.Fatal(got["fr"])
+	}
+	if _, ok := got["fr"]["ABSENT"]; ok {
+		t.Fatal("clé absente")
+	}
+	if _, ok := got["fr"]["LABEL_TITLE"]; ok {
+		t.Fatal("préfixe")
+	}
+	writeText(t, dir, "en", "screen.txt", "hors\n")
+	if _, err := Catalog(dir, "screen.txt"); err == nil {
+		t.Fatal("ligne hors clé")
+	}
+	writeText(t, dir, "en", "screen.txt", "[]\nx\n")
+	if _, err := Catalog(dir, "screen.txt"); err == nil {
+		t.Fatal("clé vide")
+	}
+	if _, err := Catalog(dir, "absent.txt"); err == nil {
+		t.Fatal("illisible")
+	}
+	for _, lang := range []string{"en", "fr", "de", "es"} {
+		writeLabel(t, dir, lang, "# note\n[LABEL_LOGIN]\nNom\n")
+	}
+	if _, err := Labels(dir); err == nil {
+		t.Fatal("labels")
+	}
+
+	var bare *keyLegend
+	bare.Use(got, "fr", "TITLE", nil, nil, nil, nil)
+	texts := map[string]map[string]string{
+		"fr": {"TITLE": "Touches", "UP": "Haut", "QUIT": "Quitter"},
+	}
+	legend := Keys("ancien", [][2]string{{"x", "y"}}, [][2]string{{"z", "w"}})
+	legend.Use(texts, "fr", "TITLE", []string{"↑"}, []string{"UP"}, []string{"ctrl+q"}, []string{"QUIT"})
+	view := plain(legend.View(DefaultStyle(), nil, false))
+	if !strings.Contains(view, "Touches") || !strings.Contains(view, "Haut") || !strings.Contains(view, "Quitter") || strings.Contains(view, "ancien") {
+		t.Fatal(view)
+	}
+	texts["fr"]["UP"] = "bas"
+	if strings.Contains(plain(legend.View(DefaultStyle(), nil, false)), "bas") {
+		t.Fatal("copie")
+	}
+	expectPanic(t, "langue", func() {
+		legend.Use(texts, "it", "TITLE", nil, nil, nil, nil)
+	})
+	expectPanic(t, "titre", func() {
+		legend.Use(texts, "fr", "ABSENT", nil, nil, nil, nil)
+	})
+	expectPanic(t, "identifiant", func() {
+		legend.Use(texts, "fr", "TITLE", []string{"↑"}, []string{"NON"}, nil, nil)
+	})
+	expectPanic(t, "paires", func() {
+		legend.Use(texts, "fr", "TITLE", []string{"↑", "↓"}, []string{"UP"}, nil, nil)
+	})
+}
+
+func TestQuitAndMeasure(t *testing.T) {
+	if _, ok := Quit()().(tea.QuitMsg); !ok {
+		t.Fatal("quit")
+	}
+	base := DefaultStyle()
+	base.Height = 12
+	next := base.WithMeasure(40, 3, 0)
+	if next.Width != 40 || next.PadX != 3 || next.Margin != 0 {
+		t.Fatal("mesure")
+	}
+	if next.Height != 12 || next.Radius != 1 || next.Mark != base.Mark || next.Idle != base.Idle || base.Width == 40 {
+		t.Fatal("reste")
+	}
+}
+
+func expectPanic(t *testing.T, name string, fn func()) {
+	t.Helper()
+	panicked := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		fn()
+	}()
+	if !panicked {
+		t.Fatal(name)
+	}
+}
+
 func lineWith(view, word string) string {
 	for _, line := range strings.Split(view, "\n") {
 		if strings.Contains(line, word) {
@@ -441,11 +648,16 @@ func lineWith(view, word string) string {
 
 func writeLabel(t *testing.T, root, lang, body string) {
 	t.Helper()
+	writeText(t, root, lang, "label.txt", body)
+}
+
+func writeText(t *testing.T, root, lang, name, body string) {
+	t.Helper()
 	dir := filepath.Join(root, lang)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "label.txt"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

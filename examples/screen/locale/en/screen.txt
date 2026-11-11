@@ -1,0 +1,25 @@
+# Legend phrases.
+
+[TITLE]
+Keys
+
+[UP]
+Previous field
+
+[DOWN]
+Next field
+
+[LEFT]
+Cursor left
+
+[RIGHT]
+Cursor right
+
+[LANG]
+Language
+
+[PASTE]
+Paste
+
+[QUIT]
+Quit
