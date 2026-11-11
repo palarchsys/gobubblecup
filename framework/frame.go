@@ -26,8 +26,27 @@ type alignedLine struct {
 }
 
 // Frame aligne text dans un cadre. title est le mot posé sur le trait, vide s'il n'y en a pas.
-func Frame(text string, align Align, title string) Widget {
+func Frame(text string, align Align, title string) *alignedLine {
 	return &alignedLine{text: text, align: align, title: title}
+}
+
+// SetText remplace le texte. L'alignement et le titre du trait restent.
+func (f *alignedLine) SetText(text string) {
+	if f == nil || f.text == text {
+		return
+	}
+	f.text = text
+	notify()
+}
+
+// SetTitle remplace le mot posé sur le trait. Une chaîne vide laisse le trait nu.
+// Le texte et l'alignement restent.
+func (f *alignedLine) SetTitle(title string) {
+	if f == nil || f.title == title {
+		return
+	}
+	f.title = title
+	notify()
 }
 
 func (f *alignedLine) Active() bool { return false }

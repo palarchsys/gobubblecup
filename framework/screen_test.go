@@ -375,6 +375,61 @@ func TestKeysColumns(t *testing.T) {
 	}
 }
 
+func TestFrameAndKeysReplaceContent(t *testing.T) {
+	var blank *alignedLine
+	blank.SetText("x")
+	blank.SetTitle("y")
+	var bare *keyLegend
+	bare.SetPairs([][2]string{{"a", "b"}}, nil)
+	bare.SetTitle("z")
+
+	frame := Frame("Liltress", AlignCenter, "Bandeau")
+	frame.SetTitle("")
+	s := DefaultStyle()
+	s.Width = 30
+	cleared := plain(frame.View(s, nil, false))
+	if strings.Contains(cleared, "Bandeau") || !strings.Contains(cleared, "Liltress") {
+		t.Fatal(cleared)
+	}
+	frame.SetText("Autre")
+	replaced := plain(frame.View(s, nil, false))
+	if !strings.Contains(replaced, "Autre") || strings.Contains(replaced, "Liltress") {
+		t.Fatal(replaced)
+	}
+	center := strings.Index(lineWith(replaced, "Autre"), "Autre")
+	left := strings.Index(lineWith(plain(Frame("Autre", AlignLeft, "").View(s, nil, false)), "Autre"), "Autre")
+	if center <= left {
+		t.Fatal("alignement")
+	}
+
+	legend := Keys("Legende", [][2]string{{"↑", "avant"}}, [][2]string{{"ctrl+l", "langue"}})
+	pairs := [][2]string{{"↓", "après"}}
+	legend.SetPairs(pairs, nil)
+	pairs[0][1] = "changé"
+	view := plain(legend.View(DefaultStyle(), nil, false))
+	if !strings.Contains(view, "Legende") || !strings.Contains(view, "après") || strings.Contains(view, "changé") || strings.Contains(view, "avant") {
+		t.Fatal(view)
+	}
+	legend.SetTitle("Touches")
+	renamed := plain(legend.View(DefaultStyle(), nil, false))
+	if !strings.Contains(renamed, "Touches") || !strings.Contains(renamed, "après") || strings.Contains(renamed, "Legende") {
+		t.Fatal(renamed)
+	}
+
+	field := NewTextInput("a", InputText, 0, false)
+	app := New(DefaultStyle(), NewGrid(NewRow(frame), NewRow(field), NewRow(legend)))
+	app = press(t, app, textKey("z"))
+	frame.SetText("bandeau")
+	legend.SetPairs([][2]string{{"ctrl+q", "quitter"}}, [][2]string{})
+	if app.grid.Focused() != field || field.Value() != "z" {
+		t.Fatalf("focus %v %q", app.grid.Focused(), field.Value())
+	}
+	hidden := New(DefaultStyle(), NewGrid(NewRow(legend))).Bind(KeyMap{HideLegend: true})
+	if strings.Contains(plain(hidden.View().Content), "colle") {
+		t.Fatal("légende stock")
+	}
+}
+
 func lineWith(view, word string) string {
 	for _, line := range strings.Split(view, "\n") {
 		if strings.Contains(line, word) {

@@ -612,11 +612,11 @@ app := framework.New(style, grille).Bind(framework.KeyMap{
 
 `Bind` remplace l'application : gardez sa valeur. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une commande. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille, même si la fonction ne renvoie rien. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien.
 
-`Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus.
+`Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus. `SetText` remplace le texte : l'alignement et le titre du trait restent. `SetTitle` remplace le mot du trait. Une chaîne vide laisse le trait nu. Le texte et l'alignement restent.
 
 `Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel, espaces compris. `SetText` ne remplace que la valeur.
 
-`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus.
+`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus. `SetPairs` remplace les deux colonnes et garde le titre. L'ordre des paires est l'ordre affiché. Une colonne vide reste valide. Les listes sont copiées. `SetTitle` remplace le mot du trait et garde les colonnes. `examples/screen` appelle ces deux poseurs quand la langue change. `HideLegend` continue de masquer la légende stock.
 
 `SetLegend` sur une catégorie remplace le titre posé sur son trait, comme `SetTitle` le fait pour un formulaire ou un champ isolé.
 

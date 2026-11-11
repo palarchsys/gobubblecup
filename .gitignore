@@ -36,6 +36,8 @@
 *.coverprofile
 coverage.out
 coverage.html
+framework-improvement.md
+framework-improvement-2.md
 
 # Système
 .DS_Store

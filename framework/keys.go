@@ -18,8 +18,38 @@ type keyLegend struct {
 
 // Keys dessine title sur le trait et deux colonnes touche, texte.
 // La touche est en accent, le texte en corps.
-func Keys(title string, left, right [][2]string) Widget {
-	return &keyLegend{title: title, left: left, right: right}
+func Keys(title string, left, right [][2]string) *keyLegend {
+	return &keyLegend{title: title, left: copyPairs(left), right: copyPairs(right)}
+}
+
+// SetPairs remplace les deux colonnes. Le titre reste.
+// L'ordre des paires est l'ordre affiché. Une colonne vide reste valide.
+// Les listes sont copiées : l'appelant peut réutiliser ses tampons.
+func (k *keyLegend) SetPairs(left, right [][2]string) {
+	if k == nil {
+		return
+	}
+	k.left = copyPairs(left)
+	k.right = copyPairs(right)
+	notify()
+}
+
+// SetTitle remplace le mot posé sur le trait. Les colonnes restent.
+func (k *keyLegend) SetTitle(title string) {
+	if k == nil || k.title == title {
+		return
+	}
+	k.title = title
+	notify()
+}
+
+func copyPairs(pairs [][2]string) [][2]string {
+	if pairs == nil {
+		return nil
+	}
+	out := make([][2]string, len(pairs))
+	copy(out, pairs)
+	return out
 }
 
 func (k *keyLegend) Active() bool { return false }

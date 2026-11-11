@@ -33,15 +33,14 @@ func main() {
 	)
 	form.Use(labels, order[lang])
 	status := framework.Status("Status : ", order[lang])
+	keyTitle, keyLeft, keyRight := keyLegend(order[lang])
+	legend := framework.Keys(keyTitle, keyLeft, keyRight)
 	grid := framework.Grid(
 		framework.Row(framework.Frame("gobubblecup", framework.AlignCenter, "")),
 		framework.Row(flags),
 		framework.Row(form),
 		framework.Row(status),
-		framework.Row(framework.Keys("Keys",
-			[][2]string{{"↑", "Previous field"}, {"↓", "Next field"}, {"←", "Cursor left"}, {"→", "Cursor right"}},
-			[][2]string{{"ctrl+l", "Language"}, {"ctrl+c", "Paste"}, {"ctrl+q", "Quit"}},
-		)),
+		framework.Row(legend),
 	)
 	style := framework.DefaultStyle()
 	style.Width = 68
@@ -58,6 +57,9 @@ func main() {
 				form.Use(labels, code)
 				form.SetTitle(titles[code])
 				status.SetText(code)
+				title, left, right := keyLegend(code)
+				legend.SetTitle(title)
+				legend.SetPairs(left, right)
 				return nil
 			},
 		},
@@ -69,4 +71,25 @@ func main() {
 	fmt.Println("language:", order[lang])
 	fmt.Println("flag:", flags.Selected())
 	fmt.Println("values:", form.Values())
+}
+
+func keyLegend(lang string) (string, [][2]string, [][2]string) {
+	switch lang {
+	case "fr":
+		return "Touches",
+			[][2]string{{"↑", "Champ précédent"}, {"↓", "Champ suivant"}, {"←", "Curseur à gauche"}, {"→", "Curseur à droite"}},
+			[][2]string{{"ctrl+l", "Langue"}, {"ctrl+c", "Coller"}, {"ctrl+q", "Quitter"}}
+	case "de":
+		return "Tasten",
+			[][2]string{{"↑", "Vorheriges Feld"}, {"↓", "Nächstes Feld"}, {"←", "Cursor links"}, {"→", "Cursor rechts"}},
+			[][2]string{{"ctrl+l", "Sprache"}, {"ctrl+c", "Einfügen"}, {"ctrl+q", "Beenden"}}
+	case "es":
+		return "Teclas",
+			[][2]string{{"↑", "Campo anterior"}, {"↓", "Campo siguiente"}, {"←", "Cursor a la izquierda"}, {"→", "Cursor a la derecha"}},
+			[][2]string{{"ctrl+l", "Idioma"}, {"ctrl+c", "Pegar"}, {"ctrl+q", "Salir"}}
+	default:
+		return "Keys",
+			[][2]string{{"↑", "Previous field"}, {"↓", "Next field"}, {"←", "Cursor left"}, {"→", "Cursor right"}},
+			[][2]string{{"ctrl+l", "Language"}, {"ctrl+c", "Paste"}, {"ctrl+q", "Quit"}}
+	}
 }
