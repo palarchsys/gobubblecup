@@ -159,3 +159,101 @@ func (n *statusLine) View(s Style, _ Widget, _ bool) string {
 	}
 	return s.box(alignText(s, n.label+n.text, AlignRight, s.content(width)), frameIdle, width, s.Height, "")
 }
+
+// caption est un texte sans cadre. Il ne prend pas le focus.
+type caption struct {
+	text     string
+	cols     int
+	disabled bool
+}
+
+// Label dessine text sur cols colonnes. 0 suit le texte.
+// Le texte trop long est coupé. Les colonnes manquantes sont des espaces.
+func Label(text string, cols int) *caption {
+	if cols < 0 {
+		cols = 0
+	}
+	return &caption{text: text, cols: cols}
+}
+
+// SetText remplace le texte. La largeur reste.
+func (c *caption) SetText(text string) {
+	if c == nil || c.text == text {
+		return
+	}
+	c.text = text
+	notify()
+}
+
+// SetColumns fixe le nombre de colonnes. 0 suit le texte.
+func (c *caption) SetColumns(cols int) {
+	if c == nil {
+		return
+	}
+	if cols < 0 {
+		cols = 0
+	}
+	if c.cols == cols {
+		return
+	}
+	c.cols = cols
+	notify()
+}
+
+func (c *caption) Active() bool { return false }
+
+func (c *caption) SetActive(bool) {}
+
+func (c *caption) Disable() {
+	if c == nil || c.disabled {
+		return
+	}
+	c.disabled = true
+	notify()
+}
+
+func (c *caption) Enable() {
+	if c == nil || !c.disabled {
+		return
+	}
+	c.disabled = false
+	notify()
+}
+
+func (c *caption) Disabled() bool { return c != nil && c.disabled }
+
+func (c *caption) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+
+func (c *caption) View(s Style, _ Widget, _ bool) string {
+	if c == nil {
+		return ""
+	}
+	if c.disabled {
+		s = s.dimmed()
+	}
+	width := lipgloss.Width(c.text)
+	if c.cols > 0 {
+		width = c.cols
+	}
+	if width < 1 {
+		width = 1
+	}
+	extra := 0
+	if s.fit && s.Width > width {
+		extra = s.Width - width
+	} else if s.fit && s.Width > 0 && s.Width < width {
+		width = s.Width
+	}
+	line := s.line(c.text, s.Text, false, width)
+	if extra <= 0 {
+		return line
+	}
+	h := 1
+	if s.Height > 1 {
+		h = s.Height
+	}
+	if h == 1 {
+		return line + s.shade(extra)
+	}
+	return padRight(line, s.veil(extra, h))
+}

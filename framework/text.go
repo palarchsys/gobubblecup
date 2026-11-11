@@ -31,6 +31,8 @@ type textInput struct {
 	editable  bool
 	border    bool
 	overwrite bool
+	labelCols int
+	fieldCols int
 }
 
 func TextInput(title string, kind InputKind, limit int, border bool) *textInput {
@@ -47,6 +49,28 @@ func (t *textInput) Value() string { return string(t.value) }
 func (t *textInput) SetText(text string) {
 	t.value = []rune(text)
 	t.caret = len(t.value)
+}
+
+// Span fixe le libellé et la saisie, en colonnes.
+// 0 sur le libellé suit le texte. 0 sur la saisie laisse la grille choisir sa largeur.
+// Le libellé trop long est coupé. La saisie garde cette largeur, le vide de la ligne va ailleurs.
+func (t *textInput) Span(label, field int) *textInput {
+	if t == nil {
+		return nil
+	}
+	if label < 0 {
+		label = 0
+	}
+	if field < 0 {
+		field = 0
+	}
+	if t.labelCols == label && t.fieldCols == field {
+		return t
+	}
+	t.labelCols = label
+	t.fieldCols = field
+	notify()
+	return t
 }
 
 // SetTitle remplace le libellé. La saisie reste.
@@ -150,10 +174,22 @@ func (t *textInput) accept(r rune) bool {
 }
 
 func (t *textInput) View(s Style, focused Widget, inside bool) string {
+	if t == nil {
+		return ""
+	}
 	if t.Disabled() {
 		s = s.dimmed()
 	}
 	width := s.Width
+	extra := 0
+	if outer, fixed := t.spanWidth(s); fixed {
+		width = outer
+		if s.fit && s.Width > outer {
+			extra = s.Width - outer
+		} else if s.fit && s.Width > 0 && s.Width < outer {
+			width = s.Width
+		}
+	}
 	if width < 1 {
 		width = 1
 	}
@@ -163,6 +199,9 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 	}
 	label := t.title
 	labelW := lipgloss.Width(label)
+	if t.labelCols > 0 {
+		labelW = t.labelCols
+	}
 	gap := 0
 	if labelW > 0 {
 		gap = 1
@@ -200,9 +239,64 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 		if gap := width - lipgloss.Width(line); gap > 0 {
 			line += s.shade(gap)
 		}
-		return line
+		return padRight(line, t.spanPad(s, extra))
 	}
-	return s.box(line, focusedEdge(t, focused, inside), width, s.Height, "")
+	return padRight(s.box(line, focusedEdge(t, focused, inside), width, s.Height, ""), t.spanPad(s, extra))
+}
+
+func (t *textInput) spanWidth(s Style) (int, bool) {
+	if t == nil || t.fieldCols <= 0 {
+		return 0, false
+	}
+	labelW := lipgloss.Width(t.title)
+	if t.labelCols > 0 {
+		labelW = t.labelCols
+	}
+	gap := 0
+	if labelW > 0 {
+		gap = 1
+	}
+	inner := labelW + gap + t.fieldCols
+	if !t.border {
+		if inner < 1 {
+			inner = 1
+		}
+		return inner, true
+	}
+	outer := inner + 2 + 2*s.padX()
+	minW := 2 + 2*s.padX() + 1
+	if outer < minW {
+		outer = minW
+	}
+	return outer, true
+}
+
+func (t *textInput) spanPad(s Style, extra int) string {
+	if extra <= 0 {
+		return ""
+	}
+	h := 1
+	if s.fit && s.Height > 1 {
+		h = s.Height
+	}
+	if h == 1 {
+		return s.shade(extra)
+	}
+	return s.veil(extra, h)
+}
+
+func padRight(body, pad string) string {
+	if pad == "" {
+		return body
+	}
+	rows := strings.Split(body, "\n")
+	pads := strings.Split(pad, "\n")
+	for i := range rows {
+		if i < len(pads) {
+			rows[i] += pads[i]
+		}
+	}
+	return strings.Join(rows, "\n")
 }
 
 // TextArea est un bloc de texte. rows est le nombre de lignes visibles.

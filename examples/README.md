@@ -24,7 +24,7 @@ Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`)
 | --- | --- |
 | `hello` | Memory, reactive list, field, button |
 | `lists` | Single choice, multiple choice, dots, reload. The button row is pushed right |
-| `input` | Form with aligned text and secret, number field, editable area, read-only area |
+| `input` | Form, fixed label and field columns, a filler, number field, editable area, read-only area |
 | `memory` | `Set(Data)`, reactive object, dot written into memory |
 | `tabs` | Two fixed tabs. Tab moves to the next one |
 | `views` | Tabs reread from memory. A missing tab stays hidden |

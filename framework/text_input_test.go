@@ -7,6 +7,56 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+func TestSpanAndFillAlign(t *testing.T) {
+	s := DefaultStyle()
+	s.Width = 40
+	s.Margin = 1
+	left := TextInput("Nom", InputText, 0, false).Span(8, 4)
+	below := TextInput("Adresse", InputText, 0, false).Span(8, 4)
+	left.SetText("AB")
+	below.SetText("CD")
+	rows := NewGrid(
+		Row(left, Fill(), Label("ok", 4)),
+		Row(below, Fill(), Label("non", 4)),
+	).layout(s, 0, false)
+	top := plain(rows[0])
+	bottom := plain(rows[1])
+	if lineWidth(rows[0]) != 40 || lineWidth(rows[1]) != 40 {
+		t.Fatalf("largeur %d %d", lineWidth(rows[0]), lineWidth(rows[1]))
+	}
+	if strings.Index(top, "AB") != 9 || strings.Index(bottom, "CD") != 9 {
+		t.Fatalf("saisie\n%s\n%s", top, bottom)
+	}
+	if strings.Index(top, "ok") != strings.Index(bottom, "non") {
+		t.Fatalf("droite\n%s\n%s", top, bottom)
+	}
+	boxed := TextInput("A", InputText, 0, true).Span(4, 6)
+	other := TextInput("BBBB", InputText, 0, true).Span(4, 6)
+	wide := DefaultStyle()
+	wide.Width = 40
+	if w := lineWidth(boxed.View(wide, nil, false)); w != lineWidth(other.View(wide, nil, false)) || w >= 40 {
+		t.Fatalf("cadre %d %d", w, lineWidth(other.View(wide, nil, false)))
+	}
+	form := Form("Compte", Field("NAME", Text), Field("CODE", Secret)).Span(4, 3)
+	view := plain(form.View(wide, nil, false))
+	nameAt, codeAt := -1, -1
+	for _, line := range strings.Split(view, "\n") {
+		if i := strings.Index(line, "NAME"); i >= 0 {
+			nameAt = i
+		}
+		if i := strings.Index(line, "CODE"); i >= 0 {
+			codeAt = i
+		}
+	}
+	if nameAt < 0 || nameAt != codeAt {
+		t.Fatalf("formulaire %d %d\n%s", nameAt, codeAt, view)
+	}
+	var none *textInput
+	if none.Span(2, 2) != nil {
+		t.Fatal("nil")
+	}
+}
+
 func TestCurseurRecouvreLeCaractere(t *testing.T) {
 	nom := NewTextInput("", InputText, 0, false)
 	nom.SetText("ab")

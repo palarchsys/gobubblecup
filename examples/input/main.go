@@ -1,4 +1,4 @@
-// Form, number field, editable area, and read-only area.
+// Form, fixed columns, filler, number field, editable area, and read-only area.
 //
 // From the module root: go run ./examples/input
 package main
@@ -18,6 +18,8 @@ func main() {
 	)
 	account.SetLabels(map[string]string{"NAME": "Name", "CODE": "Code"})
 	port := framework.TextInput("Port", framework.InputNumber, 5, false)
+	host := framework.TextInput("Host", framework.InputText, 0, false).Span(8, 10)
+	state := framework.Label("local", 8)
 	notes := framework.TextArea("Notes", "Waiting", true, 6, true)
 	read := framework.TextArea("Read", "This text cannot be edited.\nUp and down scroll it.", false, 4, true)
 
@@ -32,10 +34,12 @@ func main() {
 	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(framework.Category("Input", account, port)),
+		framework.Row(host, framework.Fill(), state),
 		framework.Row(notes, read),
 		framework.Row(example, reload),
 	)
 	style := framework.DefaultStyle()
+	style.Width = 36
 	style.Height = style.Width * 3 / 4
 	app := framework.New(style, grid)
 	if err := app.Run(); err != nil {
@@ -44,5 +48,6 @@ func main() {
 	}
 	fmt.Println("account:", account.Values())
 	fmt.Println("port:", port.Value())
+	fmt.Println("host:", host.Value())
 	fmt.Println("notes:", notes.Value())
 }

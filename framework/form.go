@@ -33,8 +33,10 @@ func Field(name string, kind FieldKind) *formField {
 
 // form empile des champs, aligne leurs saisies et fait circuler le focus.
 type form struct {
-	fields []*formField
-	box    *category
+	fields    []*formField
+	box       *category
+	labelCols int
+	fieldCols int
 }
 
 // Form empile les champs sous title. Haut et bas passent au champ voisin.
@@ -48,6 +50,25 @@ func Form(title string, fields ...*formField) *form {
 		kids = append(kids, field.input)
 	}
 	f := &form{fields: fields, box: NewCategory(title, kids...)}
+	f.paint()
+	return f
+}
+
+// Span fixe la colonne des libellés et la largeur des saisies.
+// 0 sur les libellés suit le plus long. 0 sur les saisies laisse la grille choisir.
+// La colonne compte le texte du libellé, avant « : ».
+func (f *form) Span(label, field int) *form {
+	if f == nil {
+		return nil
+	}
+	if label < 0 {
+		label = 0
+	}
+	if field < 0 {
+		field = 0
+	}
+	f.labelCols = label
+	f.fieldCols = field
 	f.paint()
 	return f
 }
@@ -103,15 +124,30 @@ func (f *form) Values() []string {
 func (f *form) ColumnFields() bool { return true }
 
 func (f *form) paint() {
-	max := 0
-	for _, field := range f.fields {
-		if n := lipgloss.Width(field.label); n > max {
-			max = n
+	if f == nil {
+		return
+	}
+	max := f.labelCols
+	if max <= 0 {
+		max = 0
+		for _, field := range f.fields {
+			if n := lipgloss.Width(field.label); n > max {
+				max = n
+			}
 		}
 	}
 	for _, field := range f.fields {
-		pad := max - lipgloss.Width(field.label)
-		field.input.SetTitle(field.label + strings.Repeat(" ", pad) + " :")
+		text := field.label
+		if max > 0 && lipgloss.Width(text) > max {
+			text = clipWidth(text, max)
+		}
+		pad := max - lipgloss.Width(text)
+		if pad < 0 {
+			pad = 0
+		}
+		field.input.labelCols = 0
+		field.input.fieldCols = f.fieldCols
+		field.input.SetTitle(text + strings.Repeat(" ", pad) + " :")
 	}
 }
 

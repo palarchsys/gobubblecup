@@ -22,9 +22,14 @@ func NewRow(widgets ...Widget) []Widget { return widgets }
 // Les objets gardent leur largeur. Row continue de donner le vide au dernier.
 func RowEnd(widgets ...Widget) []Widget {
 	row := make([]Widget, 0, len(widgets)+1)
-	row = append(row, slack{})
+	row = append(row, Fill())
 	return append(row, widgets...)
 }
+
+// Fill prend le vide horizontal de sa rangée.
+// Ce qui est à sa gauche reste à gauche. Ce qui est à sa droite reste à droite.
+// Le premier Fill de la ligne reçoit le vide. Il ne prend pas le focus.
+func Fill() Widget { return slack{} }
 
 func Grid(rows ...[]Widget) *grid { return NewGrid(rows...) }
 
@@ -590,6 +595,9 @@ func (g *grid) layout(s Style, budget int, fill bool) []string {
 			iface = sum
 		}
 	}
+	if s.Width > iface && rowHasSlack(g.rows) {
+		iface = s.Width
+	}
 	heights := fitHeights(natural, fits, budget, fill)
 	lines := make([]string, len(g.rows))
 	for i, row := range g.rows {
@@ -663,7 +671,18 @@ func columnHolds(cell, target Widget) bool {
 	return false
 }
 
-// slack est le vide que RowEnd pose à gauche de la rangée.
+func rowHasSlack(rows [][]Widget) bool {
+	for _, row := range rows {
+		for _, w := range row {
+			if taker, ok := w.(slacker); ok && taker.TakesSlack() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// slack est le vide que Fill et RowEnd prennent dans la rangée.
 type slack struct{}
 
 func (slack) TakesSlack() bool { return true }

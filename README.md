@@ -267,6 +267,18 @@ Le troisième argument est le nombre maximum de caractères. `0` ne limite pas. 
 
 Le focus suffit pour écrire. Le label prend alors la même surbrillance que le contour, et le rectangle de ciblage apparaît. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ. `SetTitle` remplace le libellé et garde la saisie.
 
+`Span(libellé, saisie)` fixe ces deux largeurs en colonnes. `0` sur le libellé suit le texte. `0` sur la saisie laisse la grille choisir. Un libellé trop long est coupé, les colonnes qui restent sont des espaces : les saisies de la ligne d'en dessous commencent au même endroit. `Form.Span` fait la même chose pour chaque champ. La colonne compte le texte du libellé, avant ` : `.
+
+```go
+framework.Row(
+    framework.TextInput("Nom", framework.InputText, 0, false).Span(8, 10),
+    framework.Fill(),
+    framework.Label("prêt", 8),
+)
+```
+
+`Label(texte, colonnes)` dessine un texte sans cadre et sans focus. `0` suit le texte. `SetText` et `SetColumns` gardent l'autre moitié. `Fill` prend le vide de la ligne. Ce qui est à sa gauche reste à gauche, ce qui est à sa droite reste à droite. Le premier `Fill` de la ligne reçoit ce vide. `RowEnd` est un `Fill` placé au début. `examples/input` aligne ainsi un champ et un état.
+
 ### Formulaire
 
 ```go
