@@ -83,7 +83,7 @@ func main() {
 }
 ```
 
-`Row` aligne des objets. `Grid` empile ces lignes. `New` construit l'application. `tea.NewProgram` l'affiche et bloque jusqu'à la sortie.
+`Row` aligne des objets et donne le vide horizontal au dernier. `RowEnd` le donne à gauche : les autres objets gardent leur largeur. `examples/lists` pousse ainsi ses boutons à droite. `Grid` empile ces lignes. `New` construit l'application. `tea.NewProgram` l'affiche et bloque jusqu'à la sortie.
 
 Une légende des touches est ajoutée sous la grille. Vous n'avez pas à la créer.
 
@@ -125,7 +125,7 @@ go build -o hello ./examples/hello
 
 `go test` vérifie le framework. `go build -o hello ./examples/hello` produit le même exemple que ci-dessus. Ce dépôt n'a pas de `package main` à la racine : la compilation d'une application se fait dans votre module, ou dans `examples/hello`.
 
-Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md).
+Les autres programmes sont dans `examples/`. Le sommaire et la commande de chacun sont dans [examples/README.md](examples/README.md). `examples/screen` montre un écran décrit avec les appels de la section [Décrire un écran](#décrire-un-écran). Lancez-le depuis la racine du module : `go run ./examples/screen`.
 
 ### Autre système
 
@@ -160,6 +160,8 @@ Une liste ne s'ouvre pas. Dès qu'elle a le focus, haut et bas déplacent son it
 Dans un champ d'une ligne, gauche et droite déplacent le curseur. Au bord, elles passent à la zone voisine. Dès que le champ a le focus, le rectangle recouvre le caractère : il n'ajoute pas de colonne. En fin de texte, il occupe une colonne après le dernier caractère. Haut et bas ne quittent pas le champ. Dans un formulaire, ils passent au champ voisin et bouclent. Gauche et droite y restent dans la saisie.
 
 Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. En lecture, Entrée ouvre, haut et bas défilent, Entrée ou Échap referment.
+
+`examples/screen` appelle `Bind` : Ctrl+Q quitte, Ctrl+C colle, et la légende du bas est masquée. Les autres démos gardent Ctrl+C et Ctrl+V.
 
 ## Style
 
@@ -262,7 +264,32 @@ Le label est à gauche, la saisie à droite, sur la même ligne.
 
 Le troisième argument est le nombre maximum de caractères. `0` ne limite pas. Le quatrième argument dessine le cadre. Sans cadre, des champs empilés se touchent.
 
-Le focus suffit pour écrire. Le label prend alors la même surbrillance que le contour, et le rectangle de ciblage apparaît. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ.
+Le focus suffit pour écrire. Le label prend alors la même surbrillance que le contour, et le rectangle de ciblage apparaît. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ. `SetTitle` remplace le libellé et garde la saisie.
+
+### Formulaire
+
+```go
+compte := framework.Form("Compte",
+    framework.Field("LOGIN", framework.Text),
+    framework.Field("CODE", framework.Secret),
+)
+compte.SetLabels(map[string]string{"LOGIN": "Identifiant", "CODE": "Code"})
+compte.SetTitle("Courrier")
+compte.Values()
+```
+
+`Field` prend le nom, puis `Text` ou `Secret`. `Secret` masque la saisie. `Form` empile les champs, complète chaque libellé jusqu'au plus long, puis écrit ` : `. Les saisies commencent donc sur la même colonne. Haut et bas passent au champ voisin et bouclent. Gauche et droite déplacent le curseur et restent dans le champ. `SetLabels` remplace les libellés et garde les valeurs. Un nom absent arrête le programme. `SetTitle` change le titre posé sur le trait. `Values` rend les textes dans l'ordre des `Field`.
+
+`examples/input` montre ce formulaire à côté d'un champ nombre et de deux zones de texte. Le nombre reste un `TextInput` : `Form` n'a pas de type nombre.
+
+```go
+labels, err := framework.Labels("examples/screen/locale")
+compte.Use(labels, "fr")
+```
+
+`Labels` lit `dossier/en/label.txt`, puis `fr`, `de` et `es`. Une clé `[LABEL_NOM]` est stockée sous `NOM`. Un fichier illisible ou une ligne hors clé renvoie une erreur. Une clé que l'écran ne demande pas peut manquer. `Use` pose les libellés d'une langue. Une langue absente, ou un nom de champ absent, arrête le programme.
+
+`SetVerticalFields(true)` sur une grille de champs isolés fait le même parcours, sans passer par `Form`. Sans cet appel, haut et bas restent dans le champ.
 
 ### Zone de texte
 
@@ -535,14 +562,45 @@ Le second argument de `Image` est la largeur en colonnes. La hauteur suit le rat
 
 `//go:embed` exige que `logo.png` soit dans le paquet du fichier source, à côté de `main.go`, au moment de `go build`.
 
-## Décrire un écran
-
-Ces appels décrivent une ligne, un formulaire, des drapeaux et une légende. Un programme qui ne les appelle pas garde Ctrl+C, Ctrl+V et la légende du bas.
-
-`Bind` remplace l'application. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une commande. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien.
+Un SVG déjà en mémoire se range avec `IncludeSVG`. Le dessin accepte les rectangles remplis et les traits `M`, `L`, `H` et `V`, y compris plusieurs sous-tracés. Un groupe est ignoré. `defs` et `clipPath` sont sautés. Un nom vide, un SVG illisible, un autre élément ou un autre ordre renvoie une erreur.
 
 ```go
-app = framework.New(style, grille).Bind(framework.KeyMap{
+//go:embed mark.svg
+var markSVG []byte
+
+func init() {
+    if err := framework.IncludeSVG("mark.svg", markSVG); err != nil {
+        panic(err)
+    }
+}
+
+marque := framework.Glyph("mark.svg", 18)
+marque.SetGray(true)
+```
+
+`Glyph` dessine l'image sans cadre et ne prend pas le focus. `SetGray(true)` passe en luminance et laisse l'objet actif. `Disable` continue de griser le cadre et de retirer le focus. `examples/image` montre le PNG, le glyphe, le gris et `RowEnd`.
+
+```go
+drapeaux, err := framework.Flags("examples/screen/flags", []string{"en", "fr", "de", "es"}, 10)
+drapeaux.Select("fr")
+drapeaux.Selected()
+```
+
+`Flags` lit `dossier/<code>.svg` dans l'ordre donné et aligne les glyphes à droite. Au départ, tous sont en couleur. `Select` colore ce code et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré, ou `""` tant qu'aucun n'est choisi. Les drapeaux ne prennent pas le focus.
+
+## Décrire un écran
+
+Ces appels décrivent une ligne, un formulaire, des drapeaux et une légende. Le programme de `examples/screen` les assemble. Il se lance depuis la racine du module, pour que `examples/screen/locale` et `examples/screen/flags` soient trouvés. Un programme qui n'appelle pas `Bind` garde Ctrl+C, Ctrl+V et la légende du bas.
+
+```go
+grille := framework.Grid(
+    framework.Row(framework.Frame("gobubblecup", framework.AlignCenter, "")),
+    framework.Row(drapeaux),
+    framework.Row(compte),
+    framework.Row(framework.Status("Status : ", "fr")),
+    framework.Row(framework.Keys("Touches", gauche, droite)),
+)
+app := framework.New(style, grille).Bind(framework.KeyMap{
     Quit:       "ctrl+q",
     Paste:      "ctrl+c",
     HideLegend: true,
@@ -552,23 +610,15 @@ app = framework.New(style, grille).Bind(framework.KeyMap{
 })
 ```
 
+`Bind` remplace l'application : gardez sa valeur. `Quit` vide reste Ctrl+C. `Paste` vide reste Ctrl+V. `HideLegend` retire la légende du bas, y compris de la hauteur de l'écran. `On` associe une touche à une fonction qui renvoie une commande. Quitter et coller sont lus avant. Une touche présente dans `On` n'atteint pas la grille, même si la fonction ne renvoie rien. Ctrl+C, quand il est la touche Coller et que le focus ne reçoit pas de texte, ne fait rien.
+
 `Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus.
 
-`Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel. `SetText` ne remplace que la valeur.
+`Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel, espaces compris. `SetText` ne remplace que la valeur.
 
-`Field(nom, Text)` ou `Field(nom, Secret)` prépare un champ. `Secret` masque la saisie. `Form(titre, champs...)` les empile, aligne les saisies et envoie haut et bas au champ voisin. Chaque libellé est complété jusqu'au plus long, puis ` : `. `SetLabels` remplace les libellés et garde les valeurs. `SetTitle` change le titre du trait. `Values` rend les textes dans l'ordre des champs. `Use(labels, langue)` pose une langue. Une langue absente, ou un nom de champ absent, arrête le programme.
+`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus.
 
-`Labels(dossier)` lit `dossier/en/label.txt`, puis `fr`, `de` et `es`. Une clé `[LABEL_NOM]` est stockée sous `NOM`. Un fichier illisible ou une ligne hors clé renvoie une erreur. Une clé que l'écran ne demande pas peut manquer.
-
-`Row` donne le vide horizontal au dernier objet. `RowEnd` le donne à gauche. Les autres objets gardent leur largeur.
-
-`IncludeSVG(nom, octets)` rasterise un SVG et le range comme `IncludeImage`. Un rectangle est rempli. Un trait n'accepte que `M`, `L`, `H` et `V`. Un groupe est ignoré. `defs` et `clipPath` sont sautés. Un autre élément ou un autre ordre renvoie une erreur. `Glyph(nom, colonnes)` dessine cette image sans cadre et ne prend pas le focus. `SetGray(true)` passe en luminance et laisse l'objet actif.
-
-`Flags(dossier, ordre, colonnes)` lit `dossier/<code>.svg` et aligne les glyphes à droite. `Select(code)` colore ce drapeau et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré. Au départ, tous sont en couleur.
-
-`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel.
-
-`SetVerticalFields` sur une grille de champs isolés fait le même parcours que `Form`. `SetTitle` sur un champ et `SetLegend` sur une catégorie restent disponibles pour un objet seul.
+`SetLegend` sur une catégorie remplace le titre posé sur son trait, comme `SetTitle` le fait pour un formulaire ou un champ isolé.
 
 ## Limites
 

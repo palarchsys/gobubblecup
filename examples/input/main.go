@@ -1,4 +1,4 @@
-// Text field, number, secret, editable area, and read-only area.
+// Form, number field, editable area, and read-only area.
 //
 // From the module root: go run ./examples/input
 package main
@@ -11,24 +11,28 @@ import (
 )
 
 func main() {
-	// The last argument is the border. Without it, the fields touch.
-	// A limit of 0 does not bound the secret. The number keeps only digits.
-	name := framework.TextInput("Name", framework.InputText, 24, true)
-	port := framework.TextInput("Port", framework.InputNumber, 5, true)
-	code := framework.TextInput("Code", framework.InputSecret, 0, false)
+	// Form aligns the labels and moves up and down between its fields.
+	// The number field stays a TextInput: Form has text and secret only.
+	account := framework.Form("Account",
+		framework.Field("NAME", framework.Text),
+		framework.Field("CODE", framework.Secret),
+	)
+	account.SetLabels(map[string]string{"NAME": "Name", "CODE": "Code"})
+	port := framework.TextInput("Port", framework.InputNumber, 5, false)
 	notes := framework.TextArea("Notes", "Waiting", true, 6, true)
 	read := framework.TextArea("Read", "This text cannot be edited.\nUp and down scroll it.", false, 4, true)
 
 	example := framework.Button("Example", framework.Call{Run: func() {
-		name.SetText("Ada")
+		account.SetTitle("Compte")
+		account.SetLabels(map[string]string{"NAME": "Nom", "CODE": "Code"})
 		port.SetText("8080")
-		code.SetText("secret")
+		port.SetTitle("Port")
 	}})
 	reload := framework.Button("Reload", framework.Reload{Target: notes})
 
 	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
-		framework.Row(framework.Category("Input", name, port, code)),
+		framework.Row(framework.Category("Input", account, port)),
 		framework.Row(notes, read),
 		framework.Row(example, reload),
 	)
@@ -39,8 +43,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("name:", name.Value())
+	fmt.Println("account:", account.Values())
 	fmt.Println("port:", port.Value())
-	fmt.Println("code:", code.Value())
 	fmt.Println("notes:", notes.Value())
 }

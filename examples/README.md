@@ -10,7 +10,7 @@ Build every demo into `bin/` and run it from this same directory:
 
 ```bash
 mkdir -p bin
-for name in hello lists input memory tabs views runtime clock watch windows file progress echo disable image; do
+for name in hello lists input memory tabs views runtime clock watch windows file progress echo disable image screen; do
   go build -o "bin/$name" "./examples/$name"
 done
 ./bin/hello
@@ -23,8 +23,8 @@ Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`)
 | Directory | What it shows |
 | --- | --- |
 | `hello` | Memory, reactive list, field, button |
-| `lists` | Single choice, multiple choice, dots, reload |
-| `input` | Text, number, secret, editable area, read-only area |
+| `lists` | Single choice, multiple choice, dots, reload. The button row is pushed right |
+| `input` | Form with aligned text and secret, number field, editable area, read-only area |
 | `memory` | `Set(Data)`, reactive object, dot written into memory |
 | `tabs` | Two fixed tabs. Tab moves to the next one |
 | `views` | Tabs reread from memory. A missing tab stays hidden |
@@ -36,6 +36,7 @@ Each demo sets `Height` to three quarters of the default width (`Width * 3 / 4`)
 | `progress` | Bar over variables that are 0 or 1. Another value is ignored |
 | `echo` | A script's output arrives in an area |
 | `disable` | A category grays its children that are still active |
-| `image` | PNG compiled into the binary |
+| `image` | PNG, SVG glyph, gray, and a row pushed to the right |
+| `screen` | Frame, flags, form, labels, status, key legend, and Bind. Run from the module root |
 
 The bash scripts are in `examples/scripts/`. The runtime launches them with `bash`. They must print `success`, `warning`, or `error`.

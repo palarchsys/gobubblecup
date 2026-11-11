@@ -1,0 +1,8 @@
+[LABEL_LOGIN]
+Identifiant
+
+[LABEL_ADDRESS]
+Adresse
+
+[LABEL_CODE]
+Code

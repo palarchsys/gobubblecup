@@ -1,4 +1,4 @@
-// Single list, multiple list, dots, and reload.
+// Single list, multiple list, dots, reload, and a button row pushed right.
 //
 // From the module root: go run ./examples/lists
 package main
@@ -32,7 +32,7 @@ func main() {
 	grid := framework.Grid(
 		framework.Row(framework.Title("gobubblecup")),
 		framework.Row(framework.Category("Catalog", colors, parts)),
-		framework.Row(reload, focus),
+		framework.RowEnd(reload, focus),
 	)
 	style := framework.DefaultStyle()
 	style.Height = style.Width * 3 / 4
