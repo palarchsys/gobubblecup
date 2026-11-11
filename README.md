@@ -169,13 +169,14 @@ Dans une zone de texte éditable, Entrée insère une ligne et Échap referme. E
 | Rôle | Couleur |
 | --- | --- |
 | Texte | `#cccccc` |
+| Invite d'un champ | `#8a8a8a` |
 | Titres | `#e5b684` |
 | Contour au repos | `#e5b684` |
 | Contour au focus | `#eccba8` |
 | Rectangle de saisie, ligne de liste armée | `#44aae6` |
 | Fond de l'écran et des zones | `#1e1e1e` |
 
-Le contour au focus est l'or du repos éclairci de 30 % vers le blanc, sans gras. Une zone ouverte utilise le même trait. Le gris `#6b6b6b` est réservé au mot `pending` et aux objets désactivés.
+Le contour au focus est l'or du repos éclairci de 30 % vers le blanc, sans gras. Une zone ouverte utilise le même trait. L'invite d'un champ est plus sombre que le texte. Le gris `#6b6b6b` est réservé au mot `pending` et aux objets désactivés.
 
 Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide dans un cadre, une cellule entre deux colonnes. L'objet le plus à droite d'une ligne occupe l'espace restant. Sans `Height`, une ligne a la hauteur de son plus grand objet. Une fenêtre connue ne fait alors que réduire ce qui dépasse : le contenu court ne descend pas jusqu'en bas. Une `Height` positive est le format de l'écran, légende comprise. Les listes et les zones se partagent ce qui reste sous la légende, sans aller plus bas que ce format. Deux listes d'une même ligne se partagent cette hauteur. La liste n'en montre qu'une fenêtre : le titre reste, et le curseur aussi. La zone garde au moins son nombre de lignes, et prend la hauteur encore libre dans le format. Les démos posent `Height` aux trois quarts de la largeur du style. `examples/page` passe d'abord par `WithMeasure(48, 2, 0)`.
 
@@ -251,8 +252,11 @@ nom := framework.TextInput("Nom", framework.InputText, 24, true)
 port := framework.TextInput("Port", framework.InputNumber, 5, true)
 code := framework.TextInput("Code", framework.InputSecret, 0, false)
 
+nom.Placeholder("Ada")
 nom.Value()
 nom.SetText("Ada")
+nom.Lock()
+nom.Unlock()
 ```
 
 Le label est à gauche, la saisie à droite, sur la même ligne.
@@ -266,6 +270,8 @@ Le label est à gauche, la saisie à droite, sur la même ligne.
 Le troisième argument est le nombre maximum de caractères. `0` ne limite pas. Le quatrième argument dessine le cadre. Sans cadre, des champs empilés se touchent.
 
 Le focus suffit pour écrire. Le label prend alors la même surbrillance que le contour, et le rectangle de ciblage apparaît. Entrée ne referme pas le champ. `Reload` restaure le texte d'origine. Ctrl+V, comme le collage du terminal, insère le presse-papier. Un retour à la ligne ne passe pas dans ce champ. `SetTitle` remplace le libellé et garde la saisie.
+
+`Placeholder` pose une invite et verrouille le champ. Elle n'entre pas dans `Value`. Elle est peinte en `#8a8a8a`. Tant que le champ est verrouillé et vide, elle reste visible, y compris au focus. La première lettre acceptée la remplace. Tant qu'un caractère est présent, elle reste cachée. Effacer toute la saisie la montre à nouveau. `Unlock` la cache même si la saisie est vide. `Lock` la rend. Un champ secret montre l'invite en clair, puis masque la saisie. `Field(...).Placeholder` fait la même chose dans un formulaire.
 
 `Span(libellé, saisie)` fixe ces deux largeurs en colonnes. `0` sur le libellé suit le texte. `0` sur la saisie laisse la grille choisir. Un libellé trop long est coupé, les colonnes qui restent sont des espaces : les saisies de la ligne d'en dessous commencent au même endroit. `Form.Span` fait la même chose pour chaque champ. La colonne compte le texte du libellé, avant ` : `.
 

@@ -1,4 +1,4 @@
-// Form, fixed columns, filler, number field, editable area, and read-only area.
+// Form, fixed columns, filler, placeholders, number field, editable area, and read-only area.
 //
 // From the module root: go run ./examples/input
 package main
@@ -17,8 +17,8 @@ func main() {
 		framework.Field("CODE", framework.InputSecret),
 	)
 	account.SetLabels(map[string]string{"NAME": "Name", "CODE": "Code"})
-	port := framework.TextInput("Port", framework.InputNumber, 5, false)
-	host := framework.TextInput("Host", framework.InputText, 0, false).Span(8, 10)
+	port := framework.TextInput("Port", framework.InputNumber, 5, false).Placeholder("8080")
+	host := framework.TextInput("Host", framework.InputText, 0, false).Span(8, 10).Placeholder("name")
 	state := framework.Label("local", 8)
 	notes := framework.TextArea("Notes", "Waiting", true, 6, true)
 	read := framework.TextArea("Read", "This text cannot be edited.\nUp and down scroll it.", false, 4, true)

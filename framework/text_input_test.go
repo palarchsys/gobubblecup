@@ -57,6 +57,88 @@ func TestSpanAndFillAlign(t *testing.T) {
 	}
 }
 
+func TestPlaceholder(t *testing.T) {
+	nom := TextInput("Nom", InputText, 0, false).Placeholder("Ada")
+	if nom.Value() != "" || !nom.Locked() {
+		t.Fatal("valeur")
+	}
+	view := nom.View(DefaultStyle(), nil, false)
+	if !lineHas(view, "Ada", "138;138;138") {
+		t.Fatal(view)
+	}
+	focused := nom.View(DefaultStyle(), nom, true)
+	if !strings.Contains(plain(focused), "Ada") {
+		t.Fatal("focus")
+	}
+	nom.Handle(true, "z")
+	if nom.Value() != "z" {
+		t.Fatal(nom.Value())
+	}
+	typed := plain(nom.View(DefaultStyle(), nom, true))
+	if strings.Contains(typed, "Ada") || !strings.Contains(typed, "z") {
+		t.Fatal(typed)
+	}
+	nom.Handle(true, "backspace")
+	if nom.Value() != "" {
+		t.Fatal("vide")
+	}
+	back := nom.View(DefaultStyle(), nom, true)
+	if !lineHas(back, "Ada", "138;138;138") {
+		t.Fatal(plain(back))
+	}
+	nom.Unlock()
+	if strings.Contains(plain(nom.View(DefaultStyle(), nil, false)), "Ada") {
+		t.Fatal("unlock")
+	}
+	nom.Lock()
+	if !lineHas(nom.View(DefaultStyle(), nil, false), "Ada", "138;138;138") {
+		t.Fatal("lock")
+	}
+	nom.SetText("x")
+	if nom.Value() != "x" || strings.Contains(plain(nom.View(DefaultStyle(), nil, false)), "Ada") {
+		t.Fatal("présent")
+	}
+	nom.SetText("")
+	if !lineHas(nom.View(DefaultStyle(), nil, false), "Ada", "138;138;138") {
+		t.Fatal("retour")
+	}
+	nom.Disable()
+	off := nom.View(DefaultStyle(), nil, false)
+	if lineHas(off, "Ada", "138;138;138") || !lineHas(off, "Ada", "107;107;107") {
+		t.Fatal("désactivé")
+	}
+	var bare *textInput
+	if bare.Placeholder("a") != nil || bare.Lock() != nil || bare.Unlock() != nil || bare.Locked() {
+		t.Fatal("nil")
+	}
+	code := TextInput("Code", InputSecret, 0, false).Placeholder("secret")
+	if !lineHas(code.View(DefaultStyle(), nil, false), "secret", "138;138;138") {
+		t.Fatal("secret")
+	}
+	code.Handle(true, "a")
+	masked := plain(code.View(DefaultStyle(), code, true))
+	if code.Value() != "a" || strings.Contains(masked, "secret") || !strings.Contains(masked, "•") {
+		t.Fatal(masked)
+	}
+	port := TextInput("Port", InputNumber, 0, false).Placeholder("8080")
+	port.Handle(true, "a")
+	if port.Value() != "" || !strings.Contains(plain(port.View(DefaultStyle(), port, true)), "8080") {
+		t.Fatal("lettre")
+	}
+	port.Handle(true, "1")
+	if port.Value() != "1" || strings.Contains(plain(port.View(DefaultStyle(), port, true)), "8080") {
+		t.Fatal("chiffre")
+	}
+	compte := Form("Compte", Field("NAME", InputText).Placeholder("Ada"))
+	if compte.Value("NAME") != "" || !strings.Contains(plain(compte.View(DefaultStyle(), nil, false)), "Ada") {
+		t.Fatal("formulaire")
+	}
+	var bareField *formField
+	if bareField.Placeholder("a") != nil || bareField.Lock() != nil || bareField.Unlock() != nil {
+		t.Fatal("champ")
+	}
+}
+
 func TestCurseurRecouvreLeCaractere(t *testing.T) {
 	nom := TextInput("", InputText, 0, false)
 	nom.SetText("ab")

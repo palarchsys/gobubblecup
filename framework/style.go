@@ -22,6 +22,7 @@ type Style struct {
 	Idle       color.Color
 	Focus      color.Color
 	Inside     color.Color
+	Hint       color.Color
 	Width      int
 	Height     int
 	PadX       int
@@ -72,6 +73,7 @@ func (s Style) dimmed() Style {
 	s.Focus = mute
 	s.Inside = mute
 	s.Idle = mute
+	s.Hint = mute
 	s.quiet = true
 	return s
 }
@@ -80,6 +82,7 @@ func (s Style) dimmed() Style {
 // Fond #1e1e1e, texte #cccccc, titres et contour au repos #e5b684.
 // Le focus éclaircit ce contour de 30 % vers le blanc, sans gras.
 // Le rectangle de saisie et la ligne de liste armée sont #44aae6.
+// L'invite d'un champ est #8a8a8a, plus sombre que le texte.
 // L'écran et les zones partagent ce fond : un écart non peint
 // laisserait voir le fond du terminal.
 // Mesures figées : PadX 1, PadY 0, Margin 1 horizontal.
@@ -94,6 +97,7 @@ func DefaultStyle() Style {
 		Idle:       Color("#e5b684"),
 		Focus:      Color("#44aae6"),
 		Inside:     Color("#44aae6"),
+		Hint:       Color("#8a8a8a"),
 		Width:      22,
 		PadX:       1,
 		PadY:       0,

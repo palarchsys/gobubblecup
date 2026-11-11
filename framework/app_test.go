@@ -487,7 +487,7 @@ func TestCadre(t *testing.T) {
 	if s.Background != s.Surface || s.Background != Color("#1e1e1e") {
 		t.Fatal("le fond et les zones diffèrent")
 	}
-	if s.Text != Color("#cccccc") || s.Accent != Color("#e5b684") || s.Idle != Color("#e5b684") || s.Focus != Color("#44aae6") || s.Inside != Color("#44aae6") {
+	if s.Text != Color("#cccccc") || s.Accent != Color("#e5b684") || s.Idle != Color("#e5b684") || s.Focus != Color("#44aae6") || s.Inside != Color("#44aae6") || s.Hint != Color("#8a8a8a") {
 		t.Fatal("encres")
 	}
 	if ink, ok := statusInk("pending"); !ok || ink != Color("#6b6b6b") {

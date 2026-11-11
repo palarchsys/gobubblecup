@@ -47,6 +47,34 @@ func Fields(names []string, secrets ...string) []*formField {
 	return out
 }
 
+// Placeholder pose l'invite du champ et le verrouille.
+// Elle n'entre pas dans la valeur.
+func (f *formField) Placeholder(text string) *formField {
+	if f == nil || f.input == nil {
+		return f
+	}
+	f.input.Placeholder(text)
+	return f
+}
+
+// Lock montre l'invite quand la saisie est vide.
+func (f *formField) Lock() *formField {
+	if f == nil || f.input == nil {
+		return f
+	}
+	f.input.Lock()
+	return f
+}
+
+// Unlock cache l'invite. Une saisie vide reste vide.
+func (f *formField) Unlock() *formField {
+	if f == nil || f.input == nil {
+		return f
+	}
+	f.input.Unlock()
+	return f
+}
+
 // form empile des champs, aligne leurs saisies et fait circuler le focus.
 type form struct {
 	fields    []*formField

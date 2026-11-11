@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -33,6 +34,8 @@ type textInput struct {
 	overwrite bool
 	labelCols int
 	fieldCols int
+	hint      string
+	locked    bool
 }
 
 func TextInput(title string, kind InputKind, limit int, border bool) *textInput {
@@ -67,6 +70,48 @@ func (t *textInput) Span(label, field int) *textInput {
 	t.fieldCols = field
 	notify()
 	return t
+}
+
+// Placeholder pose l'invite et verrouille le champ.
+// Elle n'entre pas dans Value. Elle est visible tant que la saisie est vide.
+func (t *textInput) Placeholder(text string) *textInput {
+	if t == nil {
+		return nil
+	}
+	if t.hint == text && t.locked {
+		return t
+	}
+	t.hint = text
+	t.locked = true
+	notify()
+	return t
+}
+
+// Lock montre l'invite quand la saisie est vide.
+func (t *textInput) Lock() *textInput {
+	if t == nil || t.locked {
+		return t
+	}
+	t.locked = true
+	notify()
+	return t
+}
+
+// Unlock cache l'invite. Une saisie vide reste vide.
+func (t *textInput) Unlock() *textInput {
+	if t == nil || !t.locked {
+		return t
+	}
+	t.locked = false
+	notify()
+	return t
+}
+
+// Locked dit si l'invite peut s'afficher.
+func (t *textInput) Locked() bool { return t != nil && t.locked }
+
+func (t *textInput) showingHint() bool {
+	return t != nil && t.locked && t.hint != "" && len(t.value) == 0
 }
 
 // SetTitle remplace le libellé. La saisie reste.
@@ -217,8 +262,16 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 		}
 	}
 	shown := t.Value()
+	ink := s.Text
 	if t.kind == InputSecret {
 		shown = strings.Repeat("•", len(t.value))
+	}
+	if t.showingHint() {
+		shown = t.hint
+		ink = s.Hint
+		if ink == nil {
+			ink = muteColor()
+		}
 	}
 	line := ""
 	if labelW > 0 {
@@ -230,7 +283,7 @@ func (t *textInput) View(s Style, focused Widget, inside bool) string {
 		}
 		line = s.line(label, ink, bold, labelW) + s.paint(s.Text, false, " ")
 	}
-	line += s.caretLine(shown, t.caret, focused == t && !t.Disabled(), fieldW)
+	line += s.caretLine(shown, t.caret, focused == t && !t.Disabled(), fieldW, ink)
 	if !t.border {
 		if gap := width - lipgloss.Width(line); gap > 0 {
 			line += s.shade(gap)
@@ -559,7 +612,7 @@ func (t *textArea) View(s Style, focused Widget, inside bool) string {
 		}
 		var row string
 		if open && t.editable && at == t.line {
-			row = s.caretLine(src, t.col, true, textW)
+			row = s.caretLine(src, t.col, true, textW, s.Text)
 		} else {
 			row = s.line(src, s.Text, false, textW)
 		}
@@ -729,7 +782,10 @@ func printable(key string) (rune, bool) {
 // caretLine peint le texte sur width colonnes.
 // Le curseur recouvre le caractère : il n'ajoute pas de colonne au milieu.
 // En fin de texte, il occupe une colonne après le dernier caractère.
-func (s Style) caretLine(text string, caret int, show bool, width int) string {
+func (s Style) caretLine(text string, caret int, show bool, width int, ink color.Color) string {
+	if ink == nil {
+		ink = s.Text
+	}
 	if width < 1 {
 		width = 1
 	}
@@ -778,7 +834,7 @@ func (s Style) caretLine(text string, caret int, show bool, width int) string {
 		if show && i == caret {
 			b.WriteString(s.paintOn(s.paper(), s.Focus, false, glyph))
 		} else {
-			b.WriteString(s.paint(s.Text, false, glyph))
+			b.WriteString(s.paint(ink, false, glyph))
 		}
 		used += w
 	}
