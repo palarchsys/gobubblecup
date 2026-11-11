@@ -12,11 +12,10 @@ type grid struct {
 	focus    Widget
 	inside   bool
 	vertical bool
+	minWidth int
 }
 
-func Row(widgets ...Widget) []Widget { return NewRow(widgets...) }
-
-func NewRow(widgets ...Widget) []Widget { return widgets }
+func Row(widgets ...Widget) []Widget { return widgets }
 
 // RowEnd aligne la rangée à droite. Le vide va à gauche.
 // Les objets gardent leur largeur. Row continue de donner le vide au dernier.
@@ -31,9 +30,7 @@ func RowEnd(widgets ...Widget) []Widget {
 // Le premier Fill de la ligne reçoit le vide. Il ne prend pas le focus.
 func Fill() Widget { return slack{} }
 
-func Grid(rows ...[]Widget) *grid { return NewGrid(rows...) }
-
-func NewGrid(rows ...[]Widget) *grid {
+func Grid(rows ...[]Widget) *grid {
 	for _, row := range rows {
 		for _, w := range row {
 			if w == nil {
@@ -43,6 +40,18 @@ func NewGrid(rows ...[]Widget) *grid {
 	}
 	g := &grid{rows: rows}
 	g.focusFirst()
+	return g
+}
+
+// Width vise au moins n colonnes pour chaque ligne, marge exclue.
+// Une ligne déjà plus large le reste. n inférieur à 1 ne change rien.
+// Le surplus va à Take, sinon au premier Fill, sinon au dernier objet.
+func (g *grid) Width(n int) *grid {
+	if g == nil || n < 1 || g.minWidth == n {
+		return g
+	}
+	g.minWidth = n
+	notify()
 	return g
 }
 
@@ -597,6 +606,9 @@ func (g *grid) layout(s Style, budget int, fill bool) []string {
 	}
 	if s.Width > iface && rowHasSlack(g.rows) {
 		iface = s.Width
+	}
+	if g.minWidth > iface {
+		iface = g.minWidth
 	}
 	heights := fitHeights(natural, fits, budget, fill)
 	lines := make([]string, len(g.rows))

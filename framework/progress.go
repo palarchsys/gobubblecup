@@ -13,9 +13,7 @@ type variable struct {
 	n int
 }
 
-func Variable() *variable { return NewVariable() }
-
-func NewVariable() *variable { return &variable{} }
+func Variable() *variable { return &variable{} }
 
 // Set remplace la valeur et rafraîchit l'écran.
 func (v *variable) Set(n int) {
@@ -40,9 +38,8 @@ type variableList struct {
 }
 
 // Variables crée la liste réactive passée à ProgressBar.
-func Variables(vars ...*variable) *variableList { return NewVariables(vars...) }
 
-func NewVariables(vars ...*variable) *variableList {
+func Variables(vars ...*variable) *variableList {
 	list := &variableList{}
 	list.Set(vars...)
 	return list
@@ -77,9 +74,7 @@ type progressBar struct {
 	list *variableList
 }
 
-func ProgressBar(list *variableList) *progressBar { return NewProgressBar(list) }
-
-func NewProgressBar(list *variableList) *progressBar {
+func ProgressBar(list *variableList) *progressBar {
 	if list == nil || len(list.items) == 0 {
 		panic("framework: barre sans variable")
 	}

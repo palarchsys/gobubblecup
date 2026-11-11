@@ -15,9 +15,7 @@ type category struct {
 	held     []Widget
 }
 
-func Category(legend string, kids ...Widget) *category { return NewCategory(legend, kids...) }
-
-func NewCategory(legend string, kids ...Widget) *category {
+func Category(legend string, kids ...Widget) *category {
 	for _, kid := range kids {
 		if kid == nil {
 			panic("framework: objet nul dans la catégorie")

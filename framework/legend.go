@@ -6,14 +6,15 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Legend liste les contrôles en bas de l'interface.
-type Legend struct{ gate }
+// legend liste les contrôles en bas de l'interface.
+type legend struct{ gate }
 
-func NewLegend() *Legend { return &Legend{} }
+// Legend construit cette liste. Elle ne prend pas le focus.
+func Legend() *legend { return &legend{} }
 
-func (l *Legend) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
+func (l *legend) Handle(bool, string) (bool, tea.Cmd) { return false, nil }
 
-func (l *Legend) View(s Style, _ Widget, _ bool) string {
+func (l *legend) View(s Style, _ Widget, _ bool) string {
 	return strings.Join(legendLines(s), "\n")
 }
 

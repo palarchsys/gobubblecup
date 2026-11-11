@@ -14,9 +14,7 @@ type tabItem struct {
 	label string
 }
 
-func TabItem(id, label string) *tabItem { return NewTabItem(id, label) }
-
-func NewTabItem(id, label string) *tabItem {
+func TabItem(id, label string) *tabItem {
 	if id == "" {
 		panic("framework: onglet sans id")
 	}
@@ -31,9 +29,7 @@ type tab struct {
 	grid *grid
 }
 
-func Tab(id string, grid *grid) *tab { return NewTab(id, grid) }
-
-func NewTab(id string, grid *grid) *tab {
+func Tab(id string, grid *grid) *tab {
 	if id == "" {
 		panic("framework: onglet sans id")
 	}
@@ -81,9 +77,7 @@ type tabList struct {
 // tabSource reconstruit les onglets, comme un ReactiveObject(TabItem, ...).
 type tabSource interface{ Items() []*tabItem }
 
-func TabList(args ...TabArg) *tabList { return NewTabList(args...) }
-
-func NewTabList(args ...TabArg) *tabList {
+func TabList(args ...TabArg) *tabList {
 	var items []*tabItem
 	var src tabSource
 	for _, arg := range args {

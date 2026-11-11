@@ -52,9 +52,7 @@ func IncludeImage(name string, data []byte) {
 	included[name] = img
 }
 
-func Image(path string, width int) *picture { return NewImage(path, width) }
-
-func NewImage(path string, width int) *picture {
+func Image(path string, width int) *picture {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		panic("framework: image sans chemin")
@@ -71,7 +69,7 @@ func NewImage(path string, width int) *picture {
 
 // Glyph dessine l'image incluse, sans cadre. Il ne prend pas le focus.
 func Glyph(name string, cols int) *picture {
-	p := NewImage(name, cols)
+	p := Image(name, cols)
 	p.SetBorder(false)
 	p.SetActive(false)
 	return p

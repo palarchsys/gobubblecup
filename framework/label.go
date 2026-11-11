@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"charm.land/lipgloss/v2"
 )
 
 // labelLangs est l'ensemble lu par Labels. L'ordre est fixe.
@@ -97,4 +99,19 @@ func readLabels(path string) (map[string]string, error) {
 		key = ""
 	}
 	return got, nil
+}
+
+// Columns rend la plus grande largeur d'affichage de ces clés, dans ces langues.
+// Une langue ou une clé absente compte pour zéro.
+func Columns(tables map[string]map[string]string, langs, keys []string) int {
+	max := 0
+	for _, lang := range langs {
+		table := tables[lang]
+		for _, key := range keys {
+			if n := lipgloss.Width(table[key]); n > max {
+				max = n
+			}
+		}
+	}
+	return max
 }

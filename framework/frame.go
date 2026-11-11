@@ -108,12 +108,23 @@ func alignText(s Style, text string, align Align, width int) string {
 type statusLine struct {
 	label    string
 	text     string
+	align    Align
 	disabled bool
 }
 
 // Status aligne label et la valeur à droite.
 func Status(label, text string) *statusLine {
-	return &statusLine{label: label, text: text}
+	return &statusLine{label: label, text: text, align: AlignRight}
+}
+
+// Align règle le texte. Le départ est à droite.
+func (n *statusLine) Align(a Align) *statusLine {
+	if n == nil || n.align == a {
+		return n
+	}
+	n.align = a
+	notify()
+	return n
 }
 
 // SetText remplace la valeur. label reste.
@@ -157,7 +168,7 @@ func (n *statusLine) View(s Style, _ Widget, _ bool) string {
 	if width < 1 {
 		width = 1
 	}
-	return s.box(alignText(s, n.label+n.text, AlignRight, s.content(width)), frameIdle, width, s.Height, "")
+	return s.box(alignText(s, n.label+n.text, n.align, s.content(width)), frameIdle, width, s.Height, "")
 }
 
 // caption est un texte sans cadre. Il ne prend pas le focus.

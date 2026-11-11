@@ -100,15 +100,15 @@ func TestDemoRechargerEtEcho(t *testing.T) {
 }
 
 func TestFlechesEntreZonesActives(t *testing.T) {
-	uniq := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta"))
-	mute := NewListUniq("Off", NewItem("X", "X"))
+	uniq := ListUniq("Teintes", ListItem("Cyan", "Cyan"), ListItem("Magenta", "Magenta"))
+	mute := ListUniq("Off", ListItem("X", "X"))
 	mute.SetActive(false)
-	mult := NewListMult("Pièces", NewItem("Casque", "Casque"), NewItem("Veste", "Veste"))
-	cat := NewCategory("Catalogue", uniq, mute, mult)
-	executer := NewButton("Exécuter", nil)
-	recharger := NewButton("Recharger", nil)
-	app := New(DefaultStyle(), NewGrid(
-		Row(NewTitle("gobubblecup")),
+	mult := ListMult("Pièces", ListItem("Casque", "Casque"), ListItem("Veste", "Veste"))
+	cat := Category("Catalogue", uniq, mute, mult)
+	executer := Button("Exécuter", nil)
+	recharger := Button("Recharger", nil)
+	app := New(DefaultStyle(), Grid(
+		Row(Title("gobubblecup")),
 		Row(cat, executer),
 		Row(recharger),
 	))
@@ -147,9 +147,9 @@ func TestFlechesEntreZonesActives(t *testing.T) {
 }
 
 func TestSelectionUniqueEtMultiple(t *testing.T) {
-	uniq := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta"), NewItem("Jaune", "Jaune"))
-	mult := NewListMult("Pièces", NewItem("Casque", "Casque"), NewItem("Veste", "Veste"))
-	app := New(DefaultStyle(), NewGrid(Row(NewCategory("Catalogue", uniq, mult))))
+	uniq := ListUniq("Teintes", ListItem("Cyan", "Cyan"), ListItem("Magenta", "Magenta"), ListItem("Jaune", "Jaune"))
+	mult := ListMult("Pièces", ListItem("Casque", "Casque"), ListItem("Veste", "Veste"))
+	app := New(DefaultStyle(), Grid(Row(Category("Catalogue", uniq, mult))))
 
 	if uniq.Focus() != "Cyan" {
 		t.Fatalf("focus initial %q", uniq.Focus())
@@ -226,11 +226,11 @@ func TestSelectionUniqueEtMultiple(t *testing.T) {
 }
 
 func TestChampEtZoneDeTexte(t *testing.T) {
-	port := NewTextInput("Port", InputNumber, 4, true)
-	secret := NewTextInput("Code", InputSecret, 0, true)
-	zone := NewTextArea("Notes", "a\nb\nc\nd\ne", false, 2, true)
-	edit := NewTextArea("Brouillon", "", true, 3, true)
-	app := New(DefaultStyle(), NewGrid(
+	port := TextInput("Port", InputNumber, 4, true)
+	secret := TextInput("Code", InputSecret, 0, true)
+	zone := TextArea("Notes", "a\nb\nc\nd\ne", false, 2, true)
+	edit := TextArea("Brouillon", "", true, 3, true)
+	app := New(DefaultStyle(), Grid(
 		Row(port, secret),
 		Row(zone, edit),
 	))
@@ -311,14 +311,14 @@ func TestChampEtZoneDeTexte(t *testing.T) {
 }
 
 func TestActions(t *testing.T) {
-	liste := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Jaune", "Jaune"))
-	sortie := NewTextArea("Sortie", "vide", false, 2, true)
+	liste := ListUniq("Teintes", ListItem("Cyan", "Cyan"), ListItem("Jaune", "Jaune"))
+	sortie := TextArea("Sortie", "vide", false, 2, true)
 	n := 0
-	app := New(DefaultStyle(), NewGrid(Row(
+	app := New(DefaultStyle(), Grid(Row(
 		liste,
-		NewButton("Echo", Exec{Script: "/bin/echo", Args: []string{"ok"}, Into: sortie}),
-		NewButton("Raz", Reload{Target: liste}),
-		NewButton("Plus", Call{Run: func() { n++ }}),
+		Button("Echo", Exec{Script: "/bin/echo", Args: []string{"ok"}, Into: sortie}),
+		Button("Raz", Reload{Target: liste}),
+		Button("Plus", Call{Run: func() { n++ }}),
 	)))
 
 	app = press(t, app, key(tea.KeyEnter))
@@ -406,7 +406,7 @@ func TestFenetreDeListe(t *testing.T) {
 	}
 	longue := ListUniq("Longue", args...)
 	zone := TextArea("Notes", "ligne-de-zone", false, 4, true)
-	app := New(DefaultStyle(), NewGrid(Row(longue), Row(zone)))
+	app := New(DefaultStyle(), Grid(Row(longue), Row(zone)))
 	next, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	app = next.(App)
 	vue := app.View().Content
@@ -418,7 +418,7 @@ func TestFenetreDeListe(t *testing.T) {
 	}
 
 	courte := ListUniq("Courte", ListItem("un", "Un"), ListItem("deux", "Deux"))
-	naturel := New(DefaultStyle(), NewGrid(Row(courte)))
+	naturel := New(DefaultStyle(), Grid(Row(courte)))
 	next, _ = naturel.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	naturel = next.(App)
 	if n := lineCount(naturel.View().Content); n >= 40 || !strings.Contains(plain(naturel.View().Content), "Deux") {
@@ -427,7 +427,7 @@ func TestFenetreDeListe(t *testing.T) {
 
 	format := DefaultStyle()
 	format.Height = format.Width * 3 / 4
-	cadreApp := New(format, NewGrid(Row(longue)))
+	cadreApp := New(format, Grid(Row(longue)))
 	next, _ = cadreApp.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	cadreApp = next.(App)
 	vue = cadreApp.View().Content
@@ -440,10 +440,10 @@ func TestFenetreDeListe(t *testing.T) {
 }
 
 func TestRemplissage(t *testing.T) {
-	g := NewGrid(
-		Row(NewTitle("gobubblecup")),
-		Row(NewListUniq("Large", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta")), NewButton("Autre", nil)),
-		Row(NewButton("Ok", nil)),
+	g := Grid(
+		Row(Title("gobubblecup")),
+		Row(ListUniq("Large", ListItem("Cyan", "Cyan"), ListItem("Magenta", "Magenta")), Button("Autre", nil)),
+		Row(Button("Ok", nil)),
 	)
 	parts := g.render(DefaultStyle())
 	edge := rightBorder(parts[0])
@@ -453,16 +453,16 @@ func TestRemplissage(t *testing.T) {
 		}
 	}
 
-	zone := NewTextArea("Notes", "a\nb\nc\nd\ne\nf\ng\nh", false, 6, true)
-	row := NewGrid(Row(zone, NewButton("Ok", nil))).render(DefaultStyle())[0]
+	zone := TextArea("Notes", "a\nb\nc\nd\ne\nf\ng\nh", false, 6, true)
+	row := Grid(Row(zone, Button("Ok", nil))).render(DefaultStyle())[0]
 	lines := strings.Split(plain(row), "\n")
 	last := bottomLine(lines)
 	if last < 0 || strings.Count(lines[last], "╰") != 2 {
 		t.Fatalf("hauteurs non alignées, ligne %d", last)
 	}
 
-	liste := NewListUniq("A", NewItem("un", "un"))
-	cat := NewGrid(Row(NewCategory("Boîte", liste), zone)).render(DefaultStyle())[0]
+	liste := ListUniq("A", ListItem("un", "un"))
+	cat := Grid(Row(Category("Boîte", liste), zone)).render(DefaultStyle())[0]
 	lines = strings.Split(plain(cat), "\n")
 	last = bottomLine(lines)
 	if last < 0 || strings.Count(lines[last], "╰") != 2 {
@@ -499,7 +499,7 @@ func TestCadre(t *testing.T) {
 	if ink, ok := statusInk("warning"); !ok || ink != Color("#ff8700") {
 		t.Fatal("avertissement")
 	}
-	btn := NewButton("Ok", nil)
+	btn := Button("Ok", nil)
 	repos := btn.View(s, nil, false)
 	if !strings.Contains(repos, "229;182;132") || strings.Contains(repos, "236;203;168") {
 		t.Fatal("contour au repos")
@@ -518,7 +518,7 @@ func TestCadre(t *testing.T) {
 	if !strings.Contains(eteint, "107;107;107") || strings.Contains(eteint, "229;182;132") {
 		t.Fatal("désactivé")
 	}
-	view := NewButton("Ok", nil).View(s, nil, false)
+	view := Button("Ok", nil).View(s, nil, false)
 	want := 1 + 2*s.PadY + 2
 	if got := strings.Count(view, "\n") + 1; got != want {
 		t.Fatalf("lignes %d, attendu %d", got, want)
@@ -528,12 +528,12 @@ func TestCadre(t *testing.T) {
 	}
 	square := s
 	square.Radius = 0
-	if !strings.Contains(plain(NewButton("Ok", nil).View(square, nil, false)), "┌") {
+	if !strings.Contains(plain(Button("Ok", nil).View(square, nil, false)), "┌") {
 		t.Fatal("coins droits")
 	}
 
 	placed := s.placed(30, 12)
-	view = NewButton("Ok", nil).View(placed, nil, false)
+	view = Button("Ok", nil).View(placed, nil, false)
 	if got := strings.Count(view, "\n") + 1; got != 12 {
 		t.Fatalf("hauteur imposée %d", got)
 	}
@@ -542,22 +542,22 @@ func TestCadre(t *testing.T) {
 	}
 
 	text := "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk"
-	tall := plain(NewTextArea("Notes", text, false, 2, true).View(s.placed(22, 20), nil, false))
+	tall := plain(TextArea("Notes", text, false, 2, true).View(s.placed(22, 20), nil, false))
 	if strings.Contains(tall, "█") || !strings.Contains(tall, "k") {
 		t.Fatal("la zone doit montrer tout le texte")
 	}
-	short := plain(NewTextArea("Notes", text, false, 2, true).View(s.placed(22, 8), nil, false))
+	short := plain(TextArea("Notes", text, false, 2, true).View(s.placed(22, 8), nil, false))
 	if !strings.Contains(short, "█") || strings.Contains(short, "k") {
 		t.Fatal("la barre reste quand le texte dépasse la fenêtre")
 	}
 
-	app := New(s, NewGrid(Row(NewButton("Ok", nil))))
+	app := New(s, Grid(Row(Button("Ok", nil))))
 	if app.View().BackgroundColor != s.paper() {
 		t.Fatal("fond uni")
 	}
-	lines := strings.Split(plain(New(s, NewGrid(
-		Row(NewTitle("gobubblecup")),
-		Row(NewButton("Ok", nil)),
+	lines := strings.Split(plain(New(s, Grid(
+		Row(Title("gobubblecup")),
+		Row(Button("Ok", nil)),
 	)).View().Content), "\n")
 	bottom, next := -1, -1
 	for i, line := range lines {
@@ -605,15 +605,15 @@ func rightBorder(view string) int {
 }
 
 func TestOnglets(t *testing.T) {
-	fiches := NewListUniq("Fiches", NewItem("Une", "Une"))
-	notes := NewButton("ZoneNotes", nil)
-	vues := NewTabList(NewTabItem("fiches", "Fiches"), NewTabItem("notes", "Notes"))
+	fiches := ListUniq("Fiches", ListItem("Une", "Une"))
+	notes := Button("ZoneNotes", nil)
+	vues := TabList(TabItem("fiches", "Fiches"), TabItem("notes", "Notes"))
 	vues.SetTabs(
-		NewTab("fiches", NewGrid(Row(fiches))),
-		NewTab("notes", NewGrid(Row(notes))),
+		Tab("fiches", Grid(Row(fiches))),
+		Tab("notes", Grid(Row(notes))),
 	)
-	bas := NewButton("Bas", nil)
-	app := New(DefaultStyle(), NewGrid(Row(vues), Row(bas)))
+	bas := Button("Bas", nil)
+	app := New(DefaultStyle(), Grid(Row(vues), Row(bas)))
 
 	if app.grid.Focused() != fiches || app.grid.Inside() || vues.SelectedID() != "fiches" {
 		t.Fatal("le focus part sur la première zone de l'onglet")
@@ -681,16 +681,16 @@ func TestOngletsReactifs(t *testing.T) {
 	memo.Set("fiches", "Fiches")
 	memo.Set("notes", "Notes")
 	src := ReactiveObject(TabItem, memo, map[string]string{"id": "id", "label": "value"})
-	fiches := NewButton("Panneau", nil)
-	notes := NewButton("ZoneNotes", nil)
-	plus := NewButton("ZonePlus", nil)
-	vues := NewTabList(src)
+	fiches := Button("Panneau", nil)
+	notes := Button("ZoneNotes", nil)
+	plus := Button("ZonePlus", nil)
+	vues := TabList(src)
 	vues.SetTabs(
-		NewTab("fiches", NewGrid(Row(fiches))),
-		NewTab("notes", NewGrid(Row(notes))),
-		NewTab("plus", NewGrid(Row(plus))),
+		Tab("fiches", Grid(Row(fiches))),
+		Tab("notes", Grid(Row(notes))),
+		Tab("plus", Grid(Row(plus))),
 	)
-	app := New(DefaultStyle(), NewGrid(Row(vues)))
+	app := New(DefaultStyle(), Grid(Row(vues)))
 	view := plain(app.View().Content)
 	if !strings.Contains(view, "Fiches") || !strings.Contains(view, "Notes") || strings.Contains(view, "Plus") {
 		t.Fatal(view)
@@ -732,29 +732,29 @@ func TestUneSeuleListeDOnglets(t *testing.T) {
 		}()
 		New(DefaultStyle(), grid)
 	}
-	mustPanic(NewGrid(
-		Row(NewTabList(NewTabItem("a", "A")), NewTabList(NewTabItem("b", "B"))),
+	mustPanic(Grid(
+		Row(TabList(TabItem("a", "A")), TabList(TabItem("b", "B"))),
 	))
-	inner := NewTabList(NewTabItem("b", "B"))
-	outer := NewTabList(NewTabItem("a", "A"))
-	outer.SetTabs(NewTab("a", NewGrid(Row(inner))))
-	mustPanic(NewGrid(Row(outer)))
+	inner := TabList(TabItem("b", "B"))
+	outer := TabList(TabItem("a", "A"))
+	outer.SetTabs(Tab("a", Grid(Row(inner))))
+	mustPanic(Grid(Row(outer)))
 }
 
 func TestOngletDansLaLargeur(t *testing.T) {
-	cat := NewCategory("Catalogue",
-		NewListUniq("Teintes", NewItem("Cyan", "Cyan")),
-		NewListMult("Pièces", NewItem("Casque", "Casque")),
+	cat := Category("Catalogue",
+		ListUniq("Teintes", ListItem("Cyan", "Cyan")),
+		ListMult("Pièces", ListItem("Casque", "Casque")),
 	)
-	vues := NewTabList(NewTabItem("fiches", "Fiches"), NewTabItem("notes", "Notes"))
+	vues := TabList(TabItem("fiches", "Fiches"), TabItem("notes", "Notes"))
 	vues.SetTabs(
-		NewTab("fiches", NewGrid(Row(cat))),
-		NewTab("notes", NewGrid(Row(NewTextArea("Sortie", "En attente", false, 4, true)))),
+		Tab("fiches", Grid(Row(cat))),
+		Tab("notes", Grid(Row(TextArea("Sortie", "En attente", false, 4, true)))),
 	)
-	parts := NewGrid(
-		Row(NewTitle("gobubblecup")),
+	parts := Grid(
+		Row(Title("gobubblecup")),
 		Row(vues),
-		Row(NewTextInput("Nom", InputText, 24, true), NewButton("Exécuter", nil), NewButton("Recharger", nil)),
+		Row(TextInput("Nom", InputText, 24, true), Button("Exécuter", nil), Button("Recharger", nil)),
 	).render(DefaultStyle())
 	edge := rightBorder(parts[2])
 	if got := rightBorder(parts[1]); got != edge {
@@ -783,15 +783,15 @@ func TestOngletDansLaLargeur(t *testing.T) {
 }
 
 func TestEcranEfface(t *testing.T) {
-	app := New(DefaultStyle(), NewGrid(Row(NewButton("Ok", nil))))
+	app := New(DefaultStyle(), Grid(Row(Button("Ok", nil))))
 	if !app.View().AltScreen {
 		t.Fatal("le lancement ne prend pas l'écran alternatif")
 	}
 }
 
 func TestQuitter(t *testing.T) {
-	champ := NewTextInput("Nom", InputText, 0, true)
-	app := New(DefaultStyle(), NewGrid(Row(champ)))
+	champ := TextInput("Nom", InputText, 0, true)
+	app := New(DefaultStyle(), Grid(Row(champ)))
 	app = press(t, app, textKey("a"))
 	if !app.grid.Inside() {
 		t.Fatal("le champ est ouvert")

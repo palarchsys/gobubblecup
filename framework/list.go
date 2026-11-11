@@ -211,9 +211,7 @@ type listUniq struct {
 	src    itemSource
 }
 
-func ListUniq(title string, args ...ListArg) *listUniq { return NewListUniq(title, args...) }
-
-func NewListUniq(title string, args ...ListArg) *listUniq {
+func ListUniq(title string, args ...ListArg) *listUniq {
 	var list []Item
 	var src itemSource
 	for _, arg := range args {
@@ -371,9 +369,7 @@ type listMult struct {
 	picked []bool
 }
 
-func ListMult(title string, list ...Item) *listMult { return NewListMult(title, list...) }
-
-func NewListMult(title string, list ...Item) *listMult {
+func ListMult(title string, list ...Item) *listMult {
 	return &listMult{items: newItems(title, list), picked: make([]bool, len(list))}
 }
 

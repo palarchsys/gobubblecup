@@ -10,14 +10,14 @@ import (
 )
 
 func TestFenetreEtSaisie(t *testing.T) {
-	nom := NewTextInput("Nom", InputText, 0, true)
-	code := NewTextInput("Code", InputSecret, 0, false)
-	note := NewTextInput("Note", InputText, 0, true)
+	nom := TextInput("Nom", InputText, 0, true)
+	code := TextInput("Code", InputSecret, 0, false)
+	note := TextInput("Note", InputText, 0, true)
 	w := Window()
-	suivante := NewButton("Suivante", w.Next())
-	precedente := NewButton("Précédente", w.Prev())
-	page := NewGrid(Row(nom), Row(code), Row(suivante))
-	autre := NewGrid(Row(note), Row(precedente))
+	suivante := Button("Suivante", w.Next())
+	precedente := Button("Précédente", w.Prev())
+	page := Grid(Row(nom), Row(code), Row(suivante))
+	autre := Grid(Row(note), Row(precedente))
 	w.Use(page, autre)
 	app := NewWindow(DefaultStyle(), w)
 
@@ -105,7 +105,7 @@ func TestFichierEtBarre(t *testing.T) {
 		t.Fatal("défaut")
 	}
 	liste := Variables(a, b)
-	barre := NewProgressBar(liste)
+	barre := ProgressBar(liste)
 	if !strings.Contains(plain(barre.View(DefaultStyle(), nil, false)), "0%") {
 		t.Fatal(plain(barre.View(DefaultStyle(), nil, false)))
 	}

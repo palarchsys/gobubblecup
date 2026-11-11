@@ -92,9 +92,7 @@ type Store interface {
 	Set(any, ...any)
 }
 
-func Memory() *memory { return NewMemory() }
-
-func NewMemory() *memory {
+func Memory() *memory {
 	return &memory{head: &memHead{root: newBox(), lists: map[string][]*memory{}}}
 }
 

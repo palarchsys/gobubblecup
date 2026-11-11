@@ -185,7 +185,7 @@ Les mesures sont fixes : une cellule de padding horizontal, aucune ligne vide da
 
 ## Objets
 
-Chaque constructeur court a un alias `New…` qui fait la même chose. `NewListItem` est l'alias de `ListItem`. `NewRuntime` reprend `Runtime`.
+Chaque objet a un seul constructeur, le nom court. `New` et `NewWindow` restent les deux entrées du programme.
 
 ### Titre
 
@@ -279,21 +279,23 @@ framework.Row(
 
 `Label(texte, colonnes)` dessine un texte sans cadre et sans focus. `0` suit le texte. `SetText` et `SetColumns` gardent l'autre moitié. `Fill` prend le vide de la ligne. Ce qui est à sa gauche reste à gauche, ce qui est à sa droite reste à droite. Le premier `Fill` de la ligne reçoit ce vide. `RowEnd` est un `Fill` placé au début. `examples/input` aligne ainsi un champ et un état.
 
+`Width(n)` sur une grille vise au moins `n` colonnes pour chaque ligne, marge exclue. `n` inférieur à 1 ne change rien. Une ligne déjà plus large le reste. Le surplus va à `Take`, sinon au premier `Fill`, sinon au dernier objet. `DefaultStyle` peut rester à 22 : `Width(90)` ne l'écrit pas dans le style. `Form.Span(colonne, 0)` garde la colonne des libellés et laisse la saisie prendre le reste du cadre.
+
 ### Formulaire
 
 ```go
 compte := framework.Form("Compte",
-    framework.Field("LOGIN", framework.Text),
-    framework.Field("CODE", framework.Secret),
+    framework.Fields([]string{"LOGIN", "CODE"}, "CODE")...,
 )
 compte.SetLabels(map[string]string{"LOGIN": "Identifiant", "CODE": "Code"})
 compte.SetTitle("Courrier")
 compte.Values()
+compte.Value("CODE")
 ```
 
-`Field` prend le nom, puis `Text` ou `Secret`. `Secret` masque la saisie. `Form` empile les champs, complète chaque libellé jusqu'au plus long, puis écrit ` : `. Les saisies commencent donc sur la même colonne. Haut et bas passent au champ voisin et bouclent. Gauche et droite déplacent le curseur et restent dans le champ. `SetLabels` remplace les libellés et garde les valeurs. Un nom absent arrête le programme. `SetTitle` change le titre posé sur le trait. `Values` rend les textes dans l'ordre des `Field`.
+`Field` prend le nom, puis `InputText`, `InputSecret` ou `InputNumber`. `Fields(noms, secrets...)` pose un champ par nom. Chaque nom listé en secret est masqué. Les autres sont visibles. Un secret absent des noms arrête le programme. `Form` empile les champs, complète chaque libellé jusqu'au plus long, puis écrit ` : `. Les saisies commencent donc sur la même colonne. Haut et bas passent au champ voisin et bouclent. Gauche et droite déplacent le curseur et restent dans le champ. `SetLabels` remplace les libellés et garde les valeurs. Un nom absent arrête le programme. `SetTitle` change le titre posé sur le trait. `Values` rend les textes dans l'ordre des champs. `Value(nom)` rend une saisie. Un nom absent rend une chaîne vide.
 
-`examples/input` montre ce formulaire à côté d'un champ nombre et de deux zones de texte. Le nombre reste un `TextInput` : `Form` n'a pas de type nombre.
+`examples/input` montre ce formulaire à côté d'un champ nombre et de deux zones de texte.
 
 ```go
 labels, err := framework.Labels("examples/screen/locale")
@@ -303,6 +305,8 @@ compte.Use(labels, "fr")
 `Labels` lit `dossier/en/label.txt`, puis `fr`, `de` et `es`. Une clé `[LABEL_NOM]` est stockée sous `NOM`. Un fichier illisible ou une ligne hors clé renvoie une erreur. Une clé que l'écran ne demande pas peut manquer. `Use` pose les libellés d'une langue. Une langue absente, ou un nom de champ absent, arrête le programme.
 
 `Catalog(dossier, fichier)` lit le même quartet, `dossier/<langue>/fichier`. Une clé `[NOM]` est stockée telle quelle. Une ligne vide ou qui commence par `#` est ignorée. Une clé absente n'est pas une erreur. Une clé vide, une ligne hors clé ou un fichier illisible renvoie une erreur. Les libellés de champs restent sur `Labels`.
+
+`Columns(tables, langues, clés)` rend la plus grande largeur d'affichage de ces clés, dans ces langues. Une langue ou une clé absente compte pour zéro. La largeur est celle de l'affichage, pas un compte de runes. Le catalogue n'est pas réécrit.
 
 `SetVerticalFields(true)` sur une grille de champs isolés fait le même parcours, sans passer par `Form`. Sans cet appel, haut et bas restent dans le champ.
 
@@ -658,7 +662,15 @@ drapeaux.Selected()
 
 `Flags` lit `dossier/<code>.svg` dans l'ordre donné et aligne les glyphes à droite. Au départ, tous sont en couleur. `Select` colore ce code et grise les autres. Un code absent ne change rien. `Selected` rend le code coloré, ou `""` tant qu'aucun n'est choisi. Les drapeaux ne prennent pas le focus.
 
-`Buttons(labels...)` aligne un mot encadré par label. Le premier est en couleur, les autres en gris. La rangée ne prend pas le focus. `Select` colore un label. Un label absent ne change rien. `Selected` rend le label coloré. `Next` avance et boucle. `SetLabels` remplace les mots et garde l'index. Une longueur différente arrête le programme. Le vide d'une rangée plus large va à gauche. `Row` suffit. On garde `Button` quand Entrée lance une action, et `Flags` quand le glyphe est un SVG.
+`Buttons` prend des `ListItem`. Le mot dessiné est le label, l'id est la valeur relue. Le premier est en couleur, les autres en gris. La rangée ne prend pas le focus. `Select` colore un id. Un id absent ne change rien. `Selected` rend l'id coloré. `Next` avance, boucle, et rend le nouvel id. `IDs` rend une copie des id. `SetItems` remplace les items et garde l'index. Une longueur différente arrête le programme. Le vide d'une rangée plus large va à gauche. `Row` suffit. On garde `Button` quand Entrée lance une action, et `Flags` quand le glyphe est un SVG.
+
+```go
+langues := framework.Buttons(
+    framework.ListItem("fr", "FR"),
+    framework.ListItem("de", "DE"),
+)
+code := langues.Selected()
+```
 
 ## Décrire un écran
 
@@ -689,9 +701,26 @@ if err := app.Run(); err != nil {
 
 `Frame(texte, align, titre)` aligne une ligne dans un cadre. Les alignements sont `AlignLeft`, `AlignCenter` et `AlignRight`. Le texte trop long est coupé. Un titre vide laisse le trait nu. La ligne ne prend pas le focus. `SetText` remplace le texte : l'alignement et le titre du trait restent. `SetTitle` remplace le mot du trait. Une chaîne vide laisse le trait nu. Le texte et l'alignement restent.
 
-`Status(label, texte)` aligne `label` et la valeur à droite, dans un cadre sans titre. `label` est recopié tel quel, espaces compris. `SetText` ne remplace que la valeur.
+`Status(label, texte)` aligne `label` et la valeur dans un cadre sans titre. Le départ est à droite. `Align(AlignLeft)`, `AlignRight` ou `AlignCenter` règle le texte. `label` est recopié tel quel, espaces compris. `SetText` ne remplace que la valeur.
 
-`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus. Au départ, le cadre a la largeur de son texte. `Take` lui donne le surplus de la ligne : le cadre s'étend, les colonnes ne bougent pas, et le vide reste à l'intérieur, à droite des phrases. L'autre cadre de la ligne garde la largeur de son texte. Sans `Take`, ce surplus va au dernier objet. `SetPairs` remplace les deux colonnes et garde le titre. L'ordre des paires est l'ordre affiché. Une colonne vide reste valide. Les listes sont copiées. `SetTitle` remplace le mot du trait et garde les colonnes. `Use(textes, langue, cléDuTitre, touchesGauche, idGauche, touchesDroite, idDroite)` pose le titre et les colonnes depuis un `Catalog`. Une langue absente, un identifiant absent ou deux longueurs différentes arrêtent le programme. `examples/screen` appelle `Use` quand la langue change. Les touches affichées viennent du programme. `HideLegend` continue de masquer la légende stock.
+`Keys(titre, gauche, droite)` dessine deux colonnes. Chaque paire est une touche et son texte, par exemple `{"ctrl+l", "Langue"}`. La touche est en accent, le texte en corps. Le titre est sur le trait. Les phrases viennent de l'appel : le cadre ne les traduit pas. Cette légende ne prend pas le focus. Au départ, le cadre a la largeur de son texte. `Take` lui donne le surplus de la ligne : le cadre s'étend, les colonnes ne bougent pas, et le vide reste à l'intérieur, à droite des phrases. L'autre cadre de la ligne garde la largeur de son texte. Sans `Take`, ce surplus va au dernier objet. `Column(n)` fige chaque colonne de phrases de ce bloc. `0` suit le texte affiché. Une phrase plus courte est complétée. Une phrase plus longue est montrée en entier. Changer de langue ne déplace pas la colonne. `SetPairs` remplace les deux colonnes et garde le titre. L'ordre des paires est l'ordre affiché. Une colonne vide reste valide. Les listes sont copiées. `SetTitle` remplace le mot du trait et garde les colonnes. `Use(textes, langue, cléDuTitre, touchesGauche, idGauche, touchesDroite, idDroite)` pose le titre et les colonnes depuis un `Catalog`. Une clé de titre vide laisse le trait nu. Une langue absente, un identifiant absent ou deux longueurs différentes arrêtent le programme. `examples/screen` appelle `Use` quand la langue change. Les touches affichées viennent du programme. `HideLegend` continue de masquer la légende stock.
+
+```go
+phrase := framework.Sentence{
+    Path: "configure.txt",
+    Mark: "secrets.conf",
+    Hide: "CODE",
+    Both: []string{"ADDRESS", "WATCH"},
+}.Text("ADDRESS", true, "ada@x")
+err := framework.Assign("secrets.conf", 0o600, enTete, [][2]string{{"ADDRESS", `"ada@x"`}})
+if !framework.Safe(valeur, "\"\n\r$`\\") {
+    return
+}
+```
+
+`Sentence` lit un fichier découpé par un saut de ligne suivi de `[`. L'en-tête de chaque bloc est écarté. Le dernier bloc qui convient gagne. `equal` vrai exige que le corps contienne chaque nom de `Both`. Sinon le corps contient le nom demandé et ne contient pas tous ces noms. `{1}` devient `Mark`. `{2}` devient la valeur, sauf quand le nom est `Hide` : le texte garde alors `{2}`. Un fichier illisible ou un bloc absent rend le nom seul. Aucun nom de champ n'est écrit dans le cadre. La puce `Note` reste un texte à l'écran.
+
+`Assign` remplace une ligne qui commence par `clé=`, ajoute les clés absentes et garde le reste du fichier. Un fichier absent reçoit l'en-tête. Le mode demandé est posé après l'écriture, y compris quand le fichier existait déjà. Les valeurs sont écrites telles quelles. `Safe` est faux dès que la valeur contient un caractère de la chaîne interdite.
 
 `SetLegend` sur une catégorie remplace le titre posé sur son trait, comme `SetTitle` le fait pour un formulaire ou un champ isolé.
 

@@ -7,14 +7,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// FieldKind distingue une saisie visible d'un secret masqué.
-type FieldKind int
-
-const (
-	Text FieldKind = iota
-	Secret
-)
-
 // formField est un champ nommé. Le nom est la clé des libellés.
 type formField struct {
 	name  string
@@ -22,13 +14,37 @@ type formField struct {
 	input *textInput
 }
 
-// Field prépare un champ. Text est visible, Secret est masqué.
-func Field(name string, kind FieldKind) *formField {
-	mode := InputText
-	if kind == Secret {
-		mode = InputSecret
+// Field prépare un champ. kind est InputText, InputSecret ou InputNumber.
+func Field(name string, kind InputKind) *formField {
+	return &formField{name: name, label: name, input: TextInput(name, kind, 0, false)}
+}
+
+// Fields prépare un champ par nom, dans cet ordre.
+// Chaque nom listé dans secrets est masqué. Les autres sont visibles.
+// Un secret absent de names arrête le programme.
+func Fields(names []string, secrets ...string) []*formField {
+	known := make(map[string]bool, len(names))
+	for _, name := range names {
+		known[name] = true
 	}
-	return &formField{name: name, label: name, input: NewTextInput(name, mode, 0, false)}
+	for _, name := range secrets {
+		if !known[name] {
+			panic("framework: champ " + name)
+		}
+	}
+	hidden := make(map[string]bool, len(secrets))
+	for _, name := range secrets {
+		hidden[name] = true
+	}
+	out := make([]*formField, len(names))
+	for i, name := range names {
+		kind := InputText
+		if hidden[name] {
+			kind = InputSecret
+		}
+		out[i] = Field(name, kind)
+	}
+	return out
 }
 
 // form empile des champs, aligne leurs saisies et fait circuler le focus.
@@ -49,7 +65,7 @@ func Form(title string, fields ...*formField) *form {
 		}
 		kids = append(kids, field.input)
 	}
-	f := &form{fields: fields, box: NewCategory(title, kids...)}
+	f := &form{fields: fields, box: Category(title, kids...)}
 	f.paint()
 	return f
 }
@@ -119,6 +135,19 @@ func (f *form) Values() []string {
 		out[i] = field.input.Value()
 	}
 	return out
+}
+
+// Value rend la saisie de ce nom. Un nom absent rend une chaîne vide.
+func (f *form) Value(name string) string {
+	if f == nil {
+		return ""
+	}
+	for _, field := range f.fields {
+		if field.name == name {
+			return field.input.Value()
+		}
+	}
+	return ""
 }
 
 func (f *form) ColumnFields() bool { return true }

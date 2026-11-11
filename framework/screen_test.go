@@ -14,7 +14,7 @@ import (
 )
 
 func TestBindKeepsDefaultQuit(t *testing.T) {
-	app := New(DefaultStyle(), NewGrid(NewRow(NewTextInput("a", InputText, 0, false))))
+	app := New(DefaultStyle(), Grid(Row(TextInput("a", InputText, 0, false))))
 	_, cmd := app.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
 		t.Fatal("ctrl+c")
@@ -29,8 +29,8 @@ func TestBindKeepsDefaultQuit(t *testing.T) {
 }
 
 func TestBindPasteAndHiddenLegend(t *testing.T) {
-	field := NewTextInput("a", InputText, 0, false)
-	app := New(DefaultStyle(), NewGrid(NewRow(field)))
+	field := TextInput("a", InputText, 0, false)
+	app := New(DefaultStyle(), Grid(Row(field)))
 	app = app.Bind(KeyMap{Quit: "ctrl+q", Paste: "ctrl+c", HideLegend: true})
 	if strings.Contains(plain(app.View().Content), "quitte") {
 		t.Fatal("légende stock")
@@ -61,9 +61,9 @@ func TestBindPasteAndHiddenLegend(t *testing.T) {
 }
 
 func TestBindOn(t *testing.T) {
-	field := NewTextInput("a", InputText, 0, false)
+	field := TextInput("a", InputText, 0, false)
 	hit := ""
-	app := New(DefaultStyle(), NewGrid(NewRow(field))).Bind(KeyMap{
+	app := New(DefaultStyle(), Grid(Row(field))).Bind(KeyMap{
 		On: map[string]func() tea.Cmd{
 			"ctrl+l": func() tea.Cmd { hit = "l"; return nil },
 			"ctrl+i": func() tea.Cmd { return tea.Quit },
@@ -93,9 +93,9 @@ func TestBindOn(t *testing.T) {
 }
 
 func TestVerticalFieldsMoveFocus(t *testing.T) {
-	one := NewTextInput("un", InputText, 0, false)
-	two := NewTextInput("deux", InputText, 0, false)
-	grid := NewGrid(NewRow(one), NewRow(two))
+	one := TextInput("un", InputText, 0, false)
+	two := TextInput("deux", InputText, 0, false)
+	grid := Grid(Row(one), Row(two))
 	app := New(DefaultStyle(), grid)
 	app = press(t, app, textKey("a"))
 	app = press(t, app, key(tea.KeyDown))
@@ -123,7 +123,7 @@ func TestVerticalFieldsMoveFocus(t *testing.T) {
 }
 
 func TestSetTitleKeepsValue(t *testing.T) {
-	in := NewTextInput("ancien", InputText, 0, false)
+	in := TextInput("ancien", InputText, 0, false)
 	in.SetText("secret")
 	in.SetTitle("nouveau")
 	if in.Value() != "secret" {
@@ -133,7 +133,7 @@ func TestSetTitleKeepsValue(t *testing.T) {
 	if !strings.Contains(view, "nouveau") || strings.Contains(view, "ancien") {
 		t.Fatal(view)
 	}
-	cat := NewCategory("Ancien", in)
+	cat := Category("Ancien", in)
 	cat.SetLegend("Courrier")
 	if !strings.Contains(plain(cat.View(DefaultStyle(), nil, false)), "Courrier") {
 		t.Fatal("titre")
@@ -152,7 +152,7 @@ func TestGraySkipsDisable(t *testing.T) {
 		t.Fatal(err)
 	}
 	IncludeImage("probe-red", buf.Bytes())
-	p := NewImage("probe-red", 2)
+	p := Image("probe-red", 2)
 	p.SetBorder(false)
 	colorView := p.View(DefaultStyle(), nil, false)
 	if strings.Contains(plain(colorView), "╭") {
@@ -188,15 +188,15 @@ func TestRowEndPushesTheTailRight(t *testing.T) {
 		t.Fatal(err)
 	}
 	IncludeImage("probe-block", buf.Bytes())
-	a := NewImage("probe-block", 4)
-	b := NewImage("probe-block", 4)
+	a := Image("probe-block", 4)
+	b := Image("probe-block", 4)
 	a.SetBorder(false)
 	b.SetBorder(false)
 	a.SetActive(false)
 	b.SetActive(false)
 	s := DefaultStyle()
 	s.Width = 40
-	rows := NewGrid(NewRow(NewTitle("Liltress")), RowEnd(a, b)).layout(s, 0, false)
+	rows := Grid(Row(Title("Liltress")), RowEnd(a, b)).layout(s, 0, false)
 	plainRow := plain(rows[1])
 	if lineWidth(rows[1]) != 40 {
 		t.Fatalf("largeur %d", lineWidth(rows[1]))
@@ -243,19 +243,31 @@ func TestFrameAndStatus(t *testing.T) {
 	if !strings.Contains(view, "Status : ok") || strings.Contains(view, "pending") {
 		t.Fatal(view)
 	}
+	line.Align(AlignLeft)
+	view = plain(line.View(st, nil, false))
+	if strings.Index(lineWith(view, "Status"), "Status") > 6 || !strings.Contains(view, "Status : ok") {
+		t.Fatal(view)
+	}
+	var bareStatus *statusLine
+	if bareStatus.Align(AlignLeft) != nil {
+		t.Fatal("nil")
+	}
 }
 
 func TestFormAndLabels(t *testing.T) {
-	name := Field("LOGIN", Text)
-	secret := Field("PASSWORD", Secret)
+	name := Field("LOGIN", InputText)
+	secret := Field("PASSWORD", InputSecret)
 	form := Form("Courrier", name, secret)
-	grid := NewGrid(NewRow(form))
+	grid := Grid(Row(form))
 	app := New(DefaultStyle(), grid)
 	app = press(t, app, textKey("a"))
 	app = press(t, app, key(tea.KeyDown))
 	app = press(t, app, textKey("b"))
 	if got := form.Values(); got[0] != "a" || got[1] != "b" {
 		t.Fatalf("valeurs %q", got)
+	}
+	if form.Value("LOGIN") != "a" || form.Value("ABSENT") != "" {
+		t.Fatal(form.Value("LOGIN"))
 	}
 	app = press(t, app, key(tea.KeyDown))
 	if app.grid.Focused() != name.input {
@@ -352,7 +364,7 @@ func TestSVGGlyphAndFlags(t *testing.T) {
 	}
 	s := DefaultStyle()
 	s.Width = 40
-	row := NewGrid(NewRow(NewTitle("Liltress")), NewRow(flags)).layout(s, 0, false)[1]
+	row := Grid(Row(Title("Liltress")), Row(flags)).layout(s, 0, false)[1]
 	body := plain(row)
 	lead := len(body) - len(strings.TrimLeft(body, " "))
 	if lead < 8 {
@@ -366,7 +378,7 @@ func TestKeysTakeKeepsTheTail(t *testing.T) {
 	s.Margin = 1
 	left := Keys("Contrôles", [][2]string{{"CTRL+L", "Langue"}}, nil).Take()
 	right := Keys("", [][2]string{{"↑", "Haut"}}, nil)
-	rows := NewGrid(NewRow(left, right)).layout(s, 0, false)
+	rows := Grid(Row(left, right)).layout(s, 0, false)
 	if lineWidth(rows[0]) != 60 {
 		t.Fatalf("largeur %d", lineWidth(rows[0]))
 	}
@@ -397,7 +409,7 @@ func TestKeysTakeKeepsTheTail(t *testing.T) {
 
 	plainLeft := Keys("Contrôles", [][2]string{{"CTRL+L", "Langue"}}, nil)
 	plainRight := Keys("", [][2]string{{"↑", "Haut"}}, nil)
-	grown := NewGrid(NewRow(NewTitle("Liltress")), NewRow(plainLeft, plainRight)).layout(s, 0, false)
+	grown := Grid(Row(Title("Liltress")), Row(plainLeft, plainRight)).layout(s, 0, false)
 	tail := plain(grown[1])
 	head := plain(plainLeft.View(s, nil, false))
 	if !strings.HasPrefix(tail, strings.Split(head, "\n")[0]) {
@@ -468,15 +480,15 @@ func TestFrameAndKeysReplaceContent(t *testing.T) {
 		t.Fatal(renamed)
 	}
 
-	field := NewTextInput("a", InputText, 0, false)
-	app := New(DefaultStyle(), NewGrid(NewRow(frame), NewRow(field), NewRow(legend)))
+	field := TextInput("a", InputText, 0, false)
+	app := New(DefaultStyle(), Grid(Row(frame), Row(field), Row(legend)))
 	app = press(t, app, textKey("z"))
 	frame.SetText("bandeau")
 	legend.SetPairs([][2]string{{"ctrl+q", "quitter"}}, [][2]string{})
 	if app.grid.Focused() != field || field.Value() != "z" {
 		t.Fatalf("focus %v %q", app.grid.Focused(), field.Value())
 	}
-	hidden := New(DefaultStyle(), NewGrid(NewRow(legend))).Bind(KeyMap{HideLegend: true})
+	hidden := New(DefaultStyle(), Grid(Row(legend))).Bind(KeyMap{HideLegend: true})
 	if strings.Contains(plain(hidden.View().Content), "colle") {
 		t.Fatal("légende stock")
 	}
@@ -511,18 +523,18 @@ func TestButtonFitKeepsActionAndFocus(t *testing.T) {
 
 	s := DefaultStyle()
 	s.Width = 40
-	rows := NewGrid(NewRow(NewTitle("Liltress")), NewRow(btn)).layout(s, 0, false)
+	rows := Grid(Row(Title("Liltress")), Row(btn)).layout(s, 0, false)
 	if lineWidth(rows[1]) >= lineWidth(rows[0]) {
 		t.Fatalf("étiré %d %d", lineWidth(rows[1]), lineWidth(rows[0]))
 	}
-	pushed := NewGrid(NewRow(NewTitle("Liltress")), RowEnd(btn)).layout(s, 0, false)
+	pushed := Grid(Row(Title("Liltress")), RowEnd(btn)).layout(s, 0, false)
 	lead := len(plain(pushed[1])) - len(strings.TrimLeft(plain(pushed[1]), " "))
 	if lineWidth(pushed[1]) != lineWidth(pushed[0]) || lead < 8 {
 		t.Fatalf("gauche %d\n%s", lead, plain(pushed[1]))
 	}
 
-	field := NewTextInput("a", InputText, 0, false)
-	app := New(DefaultStyle(), NewGrid(NewRow(field), NewRow(btn)))
+	field := TextInput("a", InputText, 0, false)
+	app := New(DefaultStyle(), Grid(Row(field), Row(btn)))
 	app = press(t, app, textKey("z"))
 	btn.SetLabel("OK")
 	btn.Fit()
@@ -537,8 +549,8 @@ func TestButtonsChoice(t *testing.T) {
 	if bare.Selected() != "" || bare.Next() != "" {
 		t.Fatal("nil")
 	}
-	row := Buttons("FR", "DE", "ES")
-	if row.Selected() != "FR" || row.Active() || row.buttons[0].Active() || row.buttons[1].Active() {
+	row := Buttons(ListItem("fr", "FR"), ListItem("de", "DE"), ListItem("es", "ES"))
+	if row.Selected() != "fr" || row.Active() || row.buttons[0].Active() || row.buttons[1].Active() {
 		t.Fatal("anneau")
 	}
 	if w := lineWidth(row.View(DefaultStyle(), nil, false)); w != 6+1+6+1+6 {
@@ -548,18 +560,24 @@ func TestButtonsChoice(t *testing.T) {
 	if !strings.Contains(view, "229;182;132") || !strings.Contains(view, "107;107;107") || strings.Contains(view, "236;203;168") {
 		t.Fatal("encres")
 	}
+	row.Select("DE")
+	if row.Selected() != "fr" {
+		t.Fatal("label")
+	}
 	row.Select("nope")
-	if row.Selected() != "FR" {
+	if row.Selected() != "fr" {
 		t.Fatal("absent")
 	}
-	if row.Next() != "DE" || row.Next() != "ES" || row.Next() != "FR" {
+	if row.Next() != "de" || row.Next() != "es" || row.Next() != "fr" {
 		t.Fatal(row.Selected())
 	}
-	labels := []string{"EN", "DE", "ES"}
-	row.SetLabels(labels)
-	labels[0] = "changé"
+	items := []Item{ListItem("en", "EN"), ListItem("de", "DE"), ListItem("es", "ES")}
+	row.SetItems(items)
+	items[0].Label = "changé"
+	ids := row.IDs()
+	ids[0] = "x"
 	shown := plain(row.View(DefaultStyle(), nil, false))
-	if row.Selected() != "EN" || strings.Contains(shown, "changé") || !strings.Contains(shown, "EN") {
+	if row.Selected() != "en" || row.IDs()[0] != "en" || strings.Contains(shown, "changé") || !strings.Contains(shown, "EN") {
 		t.Fatal(shown)
 	}
 	panicked := false
@@ -569,7 +587,7 @@ func TestButtonsChoice(t *testing.T) {
 				panicked = true
 			}
 		}()
-		row.SetLabels([]string{"EN"})
+		row.SetItems([]Item{ListItem("en", "EN")})
 	}()
 	if !panicked {
 		t.Fatal("longueur")
@@ -577,14 +595,14 @@ func TestButtonsChoice(t *testing.T) {
 
 	s := DefaultStyle()
 	s.Width = 40
-	laid := NewGrid(NewRow(NewTitle("Liltress")), NewRow(row)).layout(s, 0, false)
+	laid := Grid(Row(Title("Liltress")), Row(row)).layout(s, 0, false)
 	body := plain(laid[1])
 	lead := len(body) - len(strings.TrimLeft(body, " "))
 	if lineWidth(laid[1]) != lineWidth(laid[0]) || lead < 8 {
 		t.Fatalf("gauche %d\n%s", lead, body)
 	}
-	field := NewTextInput("a", InputText, 0, false)
-	app := New(s, NewGrid(NewRow(field), NewRow(row)))
+	field := TextInput("a", InputText, 0, false)
+	app := New(s, Grid(Row(field), Row(row)))
 	app = press(t, app, textKey("z"))
 	row.Next()
 	if app.grid.Focused() != field || field.Value() != "z" {
@@ -670,6 +688,179 @@ func TestQuitAndMeasure(t *testing.T) {
 	}
 	if next.Height != 12 || next.Radius != 1 || next.Mark != base.Mark || next.Idle != base.Idle || base.Width == 40 {
 		t.Fatal("reste")
+	}
+}
+
+func TestGridWidthFillsTheField(t *testing.T) {
+	s := DefaultStyle()
+	if s.Width != 22 {
+		t.Fatal(s.Width)
+	}
+	form := Form("Compte", Field("NAME", InputText), Field("CODE", InputText))
+	form.SetLabels(map[string]string{"NAME": "Nom", "CODE": "Code"})
+	form.Span(8, 0)
+	form.fields[0].input.SetText("AB")
+	form.fields[1].input.SetText("CD")
+	var none *grid
+	if none.Width(40) != nil {
+		t.Fatal("nil")
+	}
+	rows := Grid(Row(form)).Width(40).layout(s, 0, false)
+	if lineWidth(rows[0]) != 40 {
+		t.Fatalf("largeur %d\n%s", lineWidth(rows[0]), plain(rows[0]))
+	}
+	nameAt, codeAt := -1, -1
+	for _, line := range strings.Split(plain(rows[0]), "\n") {
+		if i := strings.Index(line, "AB"); i >= 0 {
+			nameAt = i
+		}
+		if i := strings.Index(line, "CD"); i >= 0 {
+			codeAt = i
+		}
+	}
+	if nameAt < 12 || nameAt != codeAt {
+		t.Fatalf("colonne %d %d\n%s", nameAt, codeAt, plain(rows[0]))
+	}
+	short := Grid(Row(Title("x"))).layout(s, 0, false)
+	wide := Grid(Row(Title("x"))).Width(40).layout(s, 0, false)
+	if lineWidth(short[0]) >= lineWidth(wide[0]) || lineWidth(wide[0]) != 40 {
+		t.Fatalf("plancher %d %d", lineWidth(short[0]), lineWidth(wide[0]))
+	}
+	kept := Grid(Row(Title("gauche"), Title("droite"))).Width(30).layout(s, 0, false)
+	if lineWidth(kept[0]) <= 30 {
+		t.Fatalf("plafond %d", lineWidth(kept[0]))
+	}
+}
+
+func TestKeysColumnKeepsThePhrase(t *testing.T) {
+	s := DefaultStyle()
+	s.Width = 60
+	s.Margin = 1
+	long := Keys("", [][2]string{{"CTRL+L", "Langue"}}, nil).Column(12)
+	short := Keys("", [][2]string{{"CTRL+L", "Ok"}}, nil).Column(12)
+	if lineWidth(long.View(s, nil, false)) != lineWidth(short.View(s, nil, false)) {
+		t.Fatalf("colonne %d %d", lineWidth(long.View(s, nil, false)), lineWidth(short.View(s, nil, false)))
+	}
+	over := Keys("", [][2]string{{"CTRL+L", "Langue plus longue"}}, nil).Column(12)
+	if lineWidth(over.View(s, nil, false)) <= lineWidth(short.View(s, nil, false)) {
+		t.Fatal("dépasse")
+	}
+	left := Keys("", [][2]string{{"CTRL+L", "Langue"}}, nil).Column(12).Take()
+	right := Keys("", [][2]string{{"↑", "Haut"}}, nil)
+	rows := Grid(Row(left, right)).layout(s, 0, false)
+	tail := strings.Split(plain(right.View(s, nil, false)), "\n")[0]
+	if lineWidth(rows[0]) != 60 || !strings.HasSuffix(strings.Split(plain(rows[0]), "\n")[0], tail) {
+		t.Fatal(plain(rows[0]))
+	}
+	left.SetPairs([][2]string{{"CTRL+L", "Ok"}}, nil)
+	again := Grid(Row(left, right)).layout(s, 0, false)
+	if lineWidth(again[0]) != 60 || !strings.HasSuffix(strings.Split(plain(again[0]), "\n")[0], tail) {
+		t.Fatal(plain(again[0]))
+	}
+	if lineWidth(left.View(s, nil, false)) != lineWidth(short.View(s, nil, false)) {
+		t.Fatal("après")
+	}
+	var bare *keyLegend
+	if bare.Column(4) != nil {
+		t.Fatal("nil")
+	}
+	catalog := map[string]map[string]string{"fr": {"UP": "Haut"}}
+	legend := Keys("ancien", nil, nil).Column(12)
+	legend.Use(catalog, "fr", "", []string{"↑"}, []string{"UP"}, nil, nil)
+	view := plain(legend.View(s, nil, false))
+	if strings.Contains(view, "ancien") || !strings.Contains(view, "Haut") || catalog["fr"]["UP"] != "Haut" {
+		t.Fatal(view)
+	}
+}
+
+func TestSentenceAssignAndSafe(t *testing.T) {
+	if !Safe("ok", "\"\n\r$`\\") || Safe("a\"b", "\"") || !Safe("ok", "") {
+		t.Fatal("safe")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "configure.txt")
+	body := "[EQUAL]\nPOSTFIX_MAIL_ADDRESS WATCHDOG_MAIL {1} {2}\n[SIMPLE]\nPOSTFIX_MAIL_ADDRESS {1} {2}\n[PWD]\nPASSWORD {1} {2}\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sentence := Sentence{
+		Path: path,
+		Mark: "secrets.conf",
+		Hide: "PASSWORD",
+		Both: []string{"POSTFIX_MAIL_ADDRESS", "WATCHDOG_MAIL"},
+	}
+	equal := sentence.Text("POSTFIX_MAIL_ADDRESS", true, "ada@x")
+	if !strings.Contains(equal, "WATCHDOG_MAIL") || !strings.Contains(equal, "secrets.conf") || !strings.Contains(equal, "ada@x") || strings.Contains(equal, "{1}") {
+		t.Fatal(equal)
+	}
+	simple := sentence.Text("POSTFIX_MAIL_ADDRESS", false, "ada@x")
+	if strings.Contains(simple, "WATCHDOG_MAIL") || !strings.Contains(simple, "ada@x") {
+		t.Fatal(simple)
+	}
+	hidden := sentence.Text("PASSWORD", false, "caché")
+	if !strings.Contains(hidden, "{2}") || strings.Contains(hidden, "caché") {
+		t.Fatal(hidden)
+	}
+	if got := (Sentence{Path: filepath.Join(dir, "absent.txt")}).Text("NAME", true, "v"); got != "NAME" {
+		t.Fatal(got)
+	}
+	if !strings.Contains(plain(Note("suite").View(DefaultStyle(), nil, false)), "suite") {
+		t.Fatal("note")
+	}
+
+	conf := filepath.Join(dir, "user.conf")
+	if err := Assign(conf, 0o644, "# head\n", [][2]string{{"A", "1"}, {"KEEP", "oui"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "# head\nA=1\nKEEP=oui\n" {
+		t.Fatalf("%q", got)
+	}
+	info, err := os.Stat(conf)
+	if err != nil || info.Mode().Perm() != 0o644 {
+		t.Fatal(info.Mode())
+	}
+	if err := os.WriteFile(conf, []byte("# head\nA=1\nOTHER=reste\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Assign(conf, 0o600, "# ignored\n", [][2]string{{"A", "2"}, {"B", `"x"`}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = os.ReadFile(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "# head\nA=2\nOTHER=reste\nB=\"x\"\n" {
+		t.Fatalf("%q", got)
+	}
+	info, err = os.Stat(conf)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("%o", info.Mode().Perm())
+	}
+
+	tables := map[string]map[string]string{
+		"fr": {"A": "你", "B": "x"},
+		"en": {"A": "Hi"},
+	}
+	if Columns(tables, []string{"fr", "en", "de"}, []string{"A", "B", "C"}) != 2 {
+		t.Fatal(Columns(tables, []string{"fr", "en", "de"}, []string{"A", "B", "C"}))
+	}
+	fields := Fields([]string{"LOGIN", "CODE"}, "CODE")
+	if fields[0].input.kind != InputText || fields[1].input.kind != InputSecret {
+		t.Fatal("kinds")
+	}
+	expectPanic(t, "secret", func() { Fields([]string{"LOGIN"}, "CODE") })
+	account := Form("Compte", fields...)
+	fields[0].input.SetText("ada")
+	if account.Value("LOGIN") != "ada" || account.Value("ABSENT") != "" {
+		t.Fatal(account.Value("LOGIN"))
+	}
+	var bare *form
+	if bare.Value("LOGIN") != "" {
+		t.Fatal("nil")
 	}
 }
 

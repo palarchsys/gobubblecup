@@ -36,10 +36,6 @@ type textInput struct {
 }
 
 func TextInput(title string, kind InputKind, limit int, border bool) *textInput {
-	return NewTextInput(title, kind, limit, border)
-}
-
-func NewTextInput(title string, kind InputKind, limit int, border bool) *textInput {
 	return &textInput{gate: gate{on: true}, title: title, kind: kind, limit: limit, editable: true, border: border}
 }
 
@@ -321,29 +317,21 @@ type textArea struct {
 	seenSet   bool
 }
 
-func TextArea(title, text string, editable bool, rows int, border bool) *textArea {
-	return NewTextArea(title, text, editable, rows, border)
-}
-
 // TextView est une zone en lecture. À chaque dessin elle relit le return
 // du slot dont l'id est publié dans focus, sous la clé.
 // Id vide ou nœud absent : texte vide. La zone n'écrit ni dans src ni dans focus.
 func TextView(src, focus Store, key string) *textArea {
-	return NewTextView(src, focus, key)
-}
-
-func NewTextView(src, focus Store, key string) *textArea {
 	if src == nil || focus == nil {
 		panic("framework: zone liée incomplète")
 	}
-	zone := NewTextArea("", "", false, 4, true)
+	zone := TextArea("", "", false, 4, true)
 	zone.src = src
 	zone.focus = focus
 	zone.focusKey = key
 	return zone
 }
 
-func NewTextArea(title, text string, editable bool, rows int, border bool) *textArea {
+func TextArea(title, text string, editable bool, rows int, border bool) *textArea {
 	if rows < 1 {
 		rows = 1
 	}

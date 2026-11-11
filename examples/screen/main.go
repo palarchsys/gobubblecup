@@ -32,9 +32,9 @@ func main() {
 	lang := 1
 	flags.Select(order[lang])
 	form := framework.Form(titles[order[lang]],
-		framework.Field("LOGIN", framework.Text),
-		framework.Field("ADDRESS", framework.Text),
-		framework.Field("CODE", framework.Secret),
+		framework.Field("LOGIN", framework.InputText),
+		framework.Field("ADDRESS", framework.InputText),
+		framework.Field("CODE", framework.InputSecret),
 	)
 	form.Use(labels, order[lang])
 	status := framework.Status("Status : ", order[lang])

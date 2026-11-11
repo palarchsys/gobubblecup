@@ -8,9 +8,9 @@ import (
 )
 
 func TestDesactive(t *testing.T) {
-	alpha := NewButton("Alpha", nil)
-	beta := NewButton("Beta", nil)
-	app := New(DefaultStyle(), NewGrid(Row(alpha, beta)))
+	alpha := Button("Alpha", nil)
+	beta := Button("Beta", nil)
+	app := New(DefaultStyle(), Grid(Row(alpha, beta)))
 	if app.grid.Focused() != alpha {
 		t.Fatal("départ")
 	}
@@ -36,10 +36,10 @@ func TestDesactive(t *testing.T) {
 	}
 
 	n := 0
-	inner := NewButton("Dedans", Call{Run: func() { n++ }})
-	cat := NewCategory("Boîte", inner)
-	out := NewButton("Dehors", nil)
-	app = New(DefaultStyle(), NewGrid(Row(cat), Row(out)))
+	inner := Button("Dedans", Call{Run: func() { n++ }})
+	cat := Category("Boîte", inner)
+	out := Button("Dehors", nil)
+	app = New(DefaultStyle(), Grid(Row(cat), Row(out)))
 	cat.Disable()
 	app.View()
 	if !inner.Disabled() || app.grid.Focused() == inner {

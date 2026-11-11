@@ -9,13 +9,13 @@ import (
 )
 
 func TestFocusMemoireEtPastille(t *testing.T) {
-	uniq := NewListUniq("Teintes", NewItem("Cyan", "Cyan"), NewItem("Magenta", "Magenta"), NewItem("Jaune", "Jaune"))
-	pieces := NewListMult("Pièces",
-		NewItem("Casque", "Casque").WithDot("#ffee00"),
-		NewItem("Veste", "Veste"),
+	uniq := ListUniq("Teintes", ListItem("Cyan", "Cyan"), ListItem("Magenta", "Magenta"), ListItem("Jaune", "Jaune"))
+	pieces := ListMult("Pièces",
+		ListItem("Casque", "Casque").WithDot("#ffee00"),
+		ListItem("Veste", "Veste"),
 	)
-	autre := NewButton("Autre", nil)
-	app := New(DefaultStyle(), NewGrid(Row(uniq, pieces), Row(autre)))
+	autre := Button("Autre", nil)
+	app := New(DefaultStyle(), Grid(Row(uniq, pieces), Row(autre)))
 
 	if uniq.Focus() != "Cyan" || pieces.Focus() != "Casque" {
 		t.Fatalf("départ %q %q", uniq.Focus(), pieces.Focus())

@@ -32,7 +32,7 @@ func TestPageChoiceAndSection(t *testing.T) {
 	if memo.Get("langue").Get("data").Get("value").String() != "fr" || choice.Label() != "Français" {
 		t.Fatal(choice.Value())
 	}
-	app := New(s, NewGrid(NewRow(choice)))
+	app := New(s, Grid(Row(choice)))
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyDown})
 	if choice.Value() != "en" || memo.Get("langue").Get("data").Get("value").String() != "en" {
 		t.Fatal(choice.Value())
@@ -48,7 +48,7 @@ func TestPageChoiceAndSection(t *testing.T) {
 	hit := 0
 	page := Page("gobubblecup", Facts(Fact{Label: "Langue", Text: choice.Label}),
 		Section("Langue", Moves(Call{Run: func() { hit++ }}, nil, choice)...))
-	app = New(s, NewGrid(NewRow(page)))
+	app = New(s, Grid(Row(page)))
 	app = press(t, app, tea.KeyPressMsg{Code: tea.KeyRight})
 	app = press(t, app, key(tea.KeyEnter))
 	if hit != 1 || app.grid.Focused() == choice {

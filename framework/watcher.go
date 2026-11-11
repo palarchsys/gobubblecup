@@ -19,9 +19,7 @@ type reactiveWatcher struct {
 	result any
 }
 
-func ReactiveWatcher(cfg WatcherConfig) *reactiveWatcher { return NewReactiveWatcher(cfg) }
-
-func NewReactiveWatcher(cfg WatcherConfig) *reactiveWatcher {
+func ReactiveWatcher(cfg WatcherConfig) *reactiveWatcher {
 	if len(cfg.Watcher) == 0 || cfg.Functions == nil {
 		panic("framework: watcher incomplet")
 	}

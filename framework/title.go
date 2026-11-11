@@ -9,9 +9,7 @@ type title struct {
 	disabled bool
 }
 
-func NewTitle(text string) *title { return &title{Text: text} }
-
-func Title(text string) *title { return NewTitle(text) }
+func Title(text string) *title { return &title{Text: text} }
 
 func (t *title) Active() bool { return false }
 

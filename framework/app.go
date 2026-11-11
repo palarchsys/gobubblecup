@@ -36,7 +36,7 @@ type App struct {
 
 func New(style Style, grid *grid) App {
 	if grid == nil {
-		grid = NewGrid()
+		grid = Grid()
 	}
 	w := Window()
 	w.Use(grid)
@@ -172,7 +172,7 @@ func (a App) View() tea.View {
 	help := ""
 	legend := 0
 	if !a.hideLegend() {
-		help = NewLegend().View(s, nil, false)
+		help = Legend().View(s, nil, false)
 		legend = lineCount(help)
 	}
 	budget, fill := 0, false

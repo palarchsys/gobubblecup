@@ -11,10 +11,10 @@ import (
 
 func main() {
 	// Form aligns the labels and moves up and down between its fields.
-	// The number field stays a TextInput: Form has text and secret only.
+	// The number field stays a TextInput beside the form.
 	account := framework.Form("Account",
-		framework.Field("NAME", framework.Text),
-		framework.Field("CODE", framework.Secret),
+		framework.Field("NAME", framework.InputText),
+		framework.Field("CODE", framework.InputSecret),
 	)
 	account.SetLabels(map[string]string{"NAME": "Name", "CODE": "Code"})
 	port := framework.TextInput("Port", framework.InputNumber, 5, false)

@@ -15,7 +15,7 @@ func TestSpanAndFillAlign(t *testing.T) {
 	below := TextInput("Adresse", InputText, 0, false).Span(8, 4)
 	left.SetText("AB")
 	below.SetText("CD")
-	rows := NewGrid(
+	rows := Grid(
 		Row(left, Fill(), Label("ok", 4)),
 		Row(below, Fill(), Label("non", 4)),
 	).layout(s, 0, false)
@@ -37,7 +37,7 @@ func TestSpanAndFillAlign(t *testing.T) {
 	if w := lineWidth(boxed.View(wide, nil, false)); w != lineWidth(other.View(wide, nil, false)) || w >= 40 {
 		t.Fatalf("cadre %d %d", w, lineWidth(other.View(wide, nil, false)))
 	}
-	form := Form("Compte", Field("NAME", Text), Field("CODE", Secret)).Span(4, 3)
+	form := Form("Compte", Field("NAME", InputText), Field("CODE", InputSecret)).Span(4, 3)
 	view := plain(form.View(wide, nil, false))
 	nameAt, codeAt := -1, -1
 	for _, line := range strings.Split(view, "\n") {
@@ -58,7 +58,7 @@ func TestSpanAndFillAlign(t *testing.T) {
 }
 
 func TestCurseurRecouvreLeCaractere(t *testing.T) {
-	nom := NewTextInput("", InputText, 0, false)
+	nom := TextInput("", InputText, 0, false)
 	nom.SetText("ab")
 	nom.caret = 1
 	view := plain(nom.View(DefaultStyle(), nom, true))
@@ -88,7 +88,7 @@ func TestCurseurRecouvreLeCaractere(t *testing.T) {
 }
 
 func TestLabelAuFocus(t *testing.T) {
-	nom := NewTextInput("Nom", InputText, 0, false)
+	nom := TextInput("Nom", InputText, 0, false)
 	nom.SetText("a")
 	repos := nom.View(DefaultStyle(), nil, false)
 	if !lineHas(repos, "Nom", "204;204;204") || lineHas(repos, "Nom", "236;203;168") {
@@ -100,10 +100,10 @@ func TestLabelAuFocus(t *testing.T) {
 }
 
 func TestArriveeSurChamp(t *testing.T) {
-	bouton := NewButton("Ok", nil)
-	nom := NewTextInput("Nom", InputText, 0, false)
+	bouton := Button("Ok", nil)
+	nom := TextInput("Nom", InputText, 0, false)
 	nom.SetText("ab")
-	app := New(DefaultStyle(), NewGrid(Row(bouton, nom)))
+	app := New(DefaultStyle(), Grid(Row(bouton, nom)))
 	if app.grid.Focused() != bouton || app.grid.Inside() {
 		t.Fatal("départ")
 	}
@@ -173,7 +173,7 @@ func TestZoneLieeAuSlot(t *testing.T) {
 }
 
 func TestSupprEtInser(t *testing.T) {
-	nom := NewTextInput("Nom", InputText, 0, true)
+	nom := TextInput("Nom", InputText, 0, true)
 	nom.SetText("abc")
 	nom.caret = 1
 	nom.Handle(true, "delete")
@@ -199,7 +199,7 @@ func TestSupprEtInser(t *testing.T) {
 		t.Fatalf("insertion %q caret %d", nom.Value(), nom.caret)
 	}
 
-	app := New(DefaultStyle(), NewGrid(Row(nom)))
+	app := New(DefaultStyle(), Grid(Row(nom)))
 	nom.SetText("xy")
 	nom.caret = 0
 	app = press(t, app, key(tea.KeyDelete))

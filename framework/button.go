@@ -13,9 +13,7 @@ type button struct {
 	fitted bool
 }
 
-func Button(label string, action Action) *button { return NewButton(label, action) }
-
-func NewButton(label string, action Action) *button {
+func Button(label string, action Action) *button {
 	return &button{gate: gate{on: true}, label: label, action: action}
 }
 
@@ -76,25 +74,26 @@ func (b *button) natural(s Style) int {
 }
 
 // buttonRow est une rangée de mots encadrés. Un seul est en couleur.
-// Elle ne prend pas le focus. Au départ le premier label est choisi.
+// Elle ne prend pas le focus. Au départ le premier item est choisi.
 type buttonRow struct {
-	labels   []string
+	items    []Item
 	buttons  []*button
 	index    int
 	disabled bool
 }
 
-// Buttons aligne un cadre par label. Le premier est en couleur, les autres en gris.
+// Buttons aligne un cadre par item. Le mot dessiné est le label.
+// Le premier est en couleur, les autres en gris.
 // Un espace d'une colonne sépare les cadres. Le vide d'une rangée plus large va à gauche.
-func Buttons(labels ...string) *buttonRow {
-	copied := append([]string(nil), labels...)
-	row := &buttonRow{labels: copied, index: -1}
+func Buttons(items ...Item) *buttonRow {
+	copied := append([]Item(nil), items...)
+	row := &buttonRow{items: copied, index: -1}
 	if len(copied) > 0 {
 		row.index = 0
 	}
 	row.buttons = make([]*button, len(copied))
-	for i, label := range copied {
-		btn := Button(label, nil)
+	for i, item := range copied {
+		btn := Button(item.Label, nil)
 		btn.SetActive(false)
 		btn.Fit()
 		if i != row.index {
@@ -105,14 +104,14 @@ func Buttons(labels ...string) *buttonRow {
 	return row
 }
 
-// Select colore label et grise les autres. Un label absent ne change rien.
-func (r *buttonRow) Select(label string) {
+// Select colore cet id et grise les autres. Un id absent ne change rien.
+func (r *buttonRow) Select(id string) {
 	if r == nil {
 		return
 	}
 	found := -1
-	for i, item := range r.labels {
-		if item == label {
+	for i, item := range r.items {
+		if item.ID == id {
 			found = i
 			break
 		}
@@ -123,40 +122,52 @@ func (r *buttonRow) Select(label string) {
 	r.apply(found)
 }
 
-// Selected rend le label coloré. Vide tant qu'aucun n'est choisi.
+// Selected rend l'id coloré. Vide tant qu'aucun n'est choisi.
 func (r *buttonRow) Selected() string {
-	if r == nil || r.index < 0 || r.index >= len(r.labels) {
+	if r == nil || r.index < 0 || r.index >= len(r.items) {
 		return ""
 	}
-	return r.labels[r.index]
+	return r.items[r.index].ID
 }
 
-// Next avance d'un cran, boucle, et rend le nouveau label.
+// Next avance d'un cran, boucle, et rend le nouvel id.
 func (r *buttonRow) Next() string {
-	if r == nil || len(r.labels) == 0 {
+	if r == nil || len(r.items) == 0 {
 		return ""
 	}
 	next := r.index + 1
-	if next < 0 || next >= len(r.labels) {
+	if next < 0 || next >= len(r.items) {
 		next = 0
 	}
 	r.apply(next)
-	return r.labels[r.index]
+	return r.items[r.index].ID
 }
 
-// SetLabels remplace les mots dans l'ordre. Le choix reste sur le même index.
+// IDs rend une copie des id, dans l'ordre des boutons.
+func (r *buttonRow) IDs() []string {
+	if r == nil {
+		return nil
+	}
+	out := make([]string, len(r.items))
+	for i, item := range r.items {
+		out[i] = item.ID
+	}
+	return out
+}
+
+// SetItems remplace les items dans l'ordre. Le choix reste sur le même index.
 // Une longueur différente arrête le programme.
-func (r *buttonRow) SetLabels(labels []string) {
+func (r *buttonRow) SetItems(items []Item) {
 	if r == nil {
 		return
 	}
-	if len(labels) != len(r.labels) {
+	if len(items) != len(r.items) {
 		panic("framework: boutons")
 	}
-	copied := append([]string(nil), labels...)
-	r.labels = copied
-	for i, label := range copied {
-		r.buttons[i].SetLabel(label)
+	copied := append([]Item(nil), items...)
+	r.items = copied
+	for i, item := range copied {
+		r.buttons[i].SetLabel(item.Label)
 	}
 }
 

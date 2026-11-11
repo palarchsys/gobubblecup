@@ -126,8 +126,6 @@ func concreteMemory(store Store) *memory {
 	return memo
 }
 
-func NewRuntime(cfg RuntimeConfig) *runtime { return Runtime(cfg) }
-
 func (r *runtime) Status() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()

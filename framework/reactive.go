@@ -10,10 +10,6 @@ type reactiveObject[T any] struct {
 	origin []memEntry
 }
 
-func ReactiveObject[T any](ctor func(id, label string) T, memo *memory, fields map[string]string) *reactiveObject[T] {
-	return NewReactiveObject(ctor, memo, fields)
-}
-
 func cloneEntries(in []memEntry) []memEntry {
 	out := make([]memEntry, len(in))
 	for i, entry := range in {
@@ -34,7 +30,7 @@ func (r *reactiveObject[T]) Reload() {
 	r.memo.restore(cloneEntries(r.origin))
 }
 
-func NewReactiveObject[T any](ctor func(id, label string) T, memo *memory, fields map[string]string) *reactiveObject[T] {
+func ReactiveObject[T any](ctor func(id, label string) T, memo *memory, fields map[string]string) *reactiveObject[T] {
 	if ctor == nil || memo == nil {
 		panic("framework: objet réactif incomplet")
 	}

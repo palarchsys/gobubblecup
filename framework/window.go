@@ -52,7 +52,7 @@ func (w *window) Use(pages ...*grid) {
 
 func (w *window) current() *grid {
 	if w == nil || len(w.pages) == 0 {
-		return NewGrid()
+		return Grid()
 	}
 	return w.pages[w.index]
 }
