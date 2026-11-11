@@ -360,6 +360,58 @@ func TestSVGGlyphAndFlags(t *testing.T) {
 	}
 }
 
+func TestKeysTakeKeepsTheTail(t *testing.T) {
+	s := DefaultStyle()
+	s.Width = 60
+	s.Margin = 1
+	left := Keys("Contrôles", [][2]string{{"CTRL+L", "Langue"}}, nil).Take()
+	right := Keys("", [][2]string{{"↑", "Haut"}}, nil)
+	rows := NewGrid(NewRow(left, right)).layout(s, 0, false)
+	if lineWidth(rows[0]) != 60 {
+		t.Fatalf("largeur %d", lineWidth(rows[0]))
+	}
+	rightView := plain(right.View(s, nil, false))
+	rightLines := strings.Split(rightView, "\n")
+	rowLines := strings.Split(plain(rows[0]), "\n")
+	if len(rowLines) != len(rightLines) {
+		t.Fatalf("lignes %d %d", len(rowLines), len(rightLines))
+	}
+	for i, line := range rowLines {
+		if !strings.HasSuffix(line, rightLines[i]) {
+			t.Fatalf("flèches %d\n%s\n%s", i, line, rightLines[i])
+		}
+	}
+	leftNatural := lineWidth(left.View(s, nil, false))
+	if 60-1-lineWidth(rightView) <= leftNatural {
+		t.Fatal("surplus")
+	}
+	body := rowLines[1]
+	phrase := strings.Index(body, "Langue")
+	edge := -1
+	if phrase >= 0 {
+		edge = strings.Index(body[phrase:], "│")
+	}
+	if phrase < 0 || edge < len("Langue")+2 {
+		t.Fatalf("vide intérieur %d %d\n%s", phrase, edge, body)
+	}
+
+	plainLeft := Keys("Contrôles", [][2]string{{"CTRL+L", "Langue"}}, nil)
+	plainRight := Keys("", [][2]string{{"↑", "Haut"}}, nil)
+	grown := NewGrid(NewRow(NewTitle("Liltress")), NewRow(plainLeft, plainRight)).layout(s, 0, false)
+	tail := plain(grown[1])
+	head := plain(plainLeft.View(s, nil, false))
+	if !strings.HasPrefix(tail, strings.Split(head, "\n")[0]) {
+		t.Fatal(tail)
+	}
+	if strings.HasSuffix(tail, strings.Split(plain(plainRight.View(s, nil, false)), "\n")[0]) {
+		t.Fatal("le dernier cadre a gardé sa largeur")
+	}
+	var bare *keyLegend
+	if bare.Take() != nil {
+		t.Fatal("nil")
+	}
+}
+
 func TestKeysColumns(t *testing.T) {
 	legend := Keys("Legende", [][2]string{{"↑", "Champ précédent"}}, [][2]string{{"ctrl+l", "Langue"}})
 	if legend.Active() {

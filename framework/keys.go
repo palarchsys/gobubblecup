@@ -14,6 +14,7 @@ type keyLegend struct {
 	left     [][2]string
 	right    [][2]string
 	disabled bool
+	slack    bool
 }
 
 // Keys dessine title sur le trait et deux colonnes touche, texte.
@@ -72,6 +73,21 @@ func pairsFrom(table map[string]string, keys, ids []string) [][2]string {
 	return out
 }
 
+// Take donne à ce cadre le surplus de sa ligne.
+// Le cadre s'étend. Les colonnes gardent la largeur de leur texte.
+// Le vide reste à l'intérieur, à droite des phrases.
+// Sans Take, le surplus va au dernier objet de la ligne.
+func (k *keyLegend) Take() *keyLegend {
+	if k == nil || k.slack {
+		return k
+	}
+	k.slack = true
+	notify()
+	return k
+}
+
+func (k *keyLegend) TakesSlack() bool { return k != nil && k.slack }
+
 // SetTitle remplace le mot posé sur le trait. Les colonnes restent.
 func (k *keyLegend) SetTitle(title string) {
 	if k == nil || k.title == title {
@@ -119,13 +135,13 @@ func (k *keyLegend) View(s Style, _ Widget, _ bool) string {
 		s = s.dimmed()
 	}
 	body := lipgloss.JoinHorizontal(lipgloss.Top, paintPairs(s, k.left), s.shade(2), paintPairs(s, k.right))
-	width := s.Width
-	if width < 1 {
-		width = 1
-	}
 	natural := lineWidth(body) + 2 + 2*s.padX()
-	if width < natural {
-		width = natural
+	if natural < 1 {
+		natural = 1
+	}
+	width := natural
+	if s.fit && s.Width > natural {
+		width = s.Width
 	}
 	return s.box(body, frameIdle, width, s.Height, k.title)
 }
